@@ -1,0 +1,610 @@
+/**
+ * File: whatsapp-styles.css
+ * Description: Contains all UI styles specific to the M.H WhatsApp Add-on.
+ * Version: 16.2.0
+ */
+
+/* --- Design Tokens Bridge --- */
+:root {
+    /* Main CRM Tokens (Fallbacks) */
+    --brand-cyan: #00d2ff;
+    --brand-blue: #004e92;
+    --brand-purple: #8e2de2;
+    --brand-chrome: #f8f9fa;
+    --primary-gradient: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-cyan) 100%);
+    --bg-surface: rgba(255, 255, 255, 0.85);
+    --border-glass: rgba(255, 255, 255, 0.4);
+    --glass-blur: blur(12px);
+    --shadow-premium: 0 10px 30px -10px rgba(0, 78, 146, 0.15);
+    --radius-xl: 20px;
+    --radius-lg: 12px;
+    --radius-md: 8px;
+    --transition-fast: all 0.2s ease;
+    --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#crm-app-wrapper {
+    font-family: 'Inter', sans-serif;
+}
+
+/* ===================================================================
+   1. GROUP SEND WIZARD & SMART FILTER PANEL (NEW DESIGN)
+   =================================================================== */
+
+/* --- Modal Layout --- */
+.gs-modal-content {
+    background: var(--bg-surface) !important;
+    backdrop-filter: var(--glass-blur) !important;
+    border: 1px solid var(--border-glass) !important;
+    border-radius: var(--radius-xl) !important;
+    box-shadow: var(--shadow-premium) !important;
+}
+
+.gs-step-content[data-step-content="1"] {
+    background-color: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(5px);
+    padding: 24px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-glass);
+}
+
+.gs-filter-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* Switched order for RTL */
+    gap: 30px;
+}
+
+/* --- Right Column: Filter Options --- */
+.gs-filter-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.gs-filter-panel-title {
+    font-size: 1.5em;
+    font-weight: 700;
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+
+.gs-filter-group {
+    border-bottom: 1px solid var(--border-color);
+}
+.gs-filter-group:last-child {
+    border-bottom: none;
+}
+
+.gs-filter-group-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: right;
+}
+.gs-filter-group-header span {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: color var(--transition-fast);
+}
+.gs-filter-group-header .material-icons {
+    transition: transform var(--transition-smooth);
+}
+.gs-filter-group.open .gs-filter-group-header .material-icons {
+    transform: rotate(180deg);
+}
+.gs-filter-group-header:hover span {
+    color: var(--text-primary);
+}
+
+.gs-filter-group-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-in-out;
+}
+.gs-filter-group.open .gs-filter-group-content {
+    max-height: 300px; /* Adjust as needed */
+    overflow-y: auto;
+}
+
+.gs-filter-search-wrapper {
+    position: relative;
+    margin: 0 8px 16px;
+}
+.gs-filter-search {
+    width: 100%;
+    padding: 10px 14px 10px 40px; /* Space for icon */
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-card);
+}
+.gs-filter-search-wrapper .material-icons {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 12px;
+    color: var(--text-tertiary);
+}
+
+.gs-filter-options-list {
+    padding: 0 8px;
+}
+.gs-filter-option {
+    display: flex;
+    align-items: center;
+}
+.gs-filter-option label {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 10px 0;
+    cursor: pointer;
+}
+.gs-filter-option .option-name {
+    flex-grow: 1;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+.gs-filter-option .option-count {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    margin-right: 10px;
+}
+.gs-filter-option input[type="checkbox"] {
+    transform: scale(1.2);
+    margin-left: 12px;
+    accent-color: var(--primary-blue);
+}
+
+/* --- Left Column: Filter Summary --- */
+.gs-filter-results {
+    background-color: #fff;
+    padding: 24px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.gs-selected-filters-container {
+    flex-grow: 1;
+    margin-bottom: 20px;
+}
+.gs-selected-filters-container .placeholder {
+    color: var(--text-tertiary);
+}
+.gs-selected-filter-tag {
+    display: inline-flex;
+    align-items: center;
+    background: var(--primary-gradient);
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin: 0 8px 8px 0;
+    font-weight: 600;
+    box-shadow: 0 4px 10px rgba(0, 78, 146, 0.2);
+}
+.gs-selected-filter-tag button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-right: -4px;
+    margin-left: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    opacity: 0.8;
+}
+.gs-selected-filter-tag button:hover {
+    opacity: 1;
+}
+.gs-selected-filter-tag .material-icons {
+    font-size: 16px;
+}
+
+.gs-results-summary {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-glass);
+}
+.gs-results-summary .material-icons {
+    font-size: 48px;
+    color: var(--brand-cyan);
+}
+.gs-results-summary .summary-text {
+    display: flex;
+    flex-direction: column;
+}
+.gs-results-summary #gsStep1Count {
+    font-size: 2.4em;
+    font-weight: 800;
+    color: var(--brand-blue);
+    line-height: 1;
+}
+.gs-results-summary .summary-text span:last-child {
+    font-size: 1.1em;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* --- Step Indicator & Footer (No major changes) --- */
+.gs-step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    padding: 0 20px;
+}
+.gs-step-indicator .step {
+    display: flex; flex-direction: column; align-items: center;
+    color: var(--text-tertiary); transition: all var(--transition-smooth); position: relative;
+}
+.gs-step-indicator .step .step-icon {
+    width: 36px; height: 36px; border-radius: 50%; background-color: var(--bg-hover);
+    border: 2px solid var(--border-color); display: flex; align-items: center;
+    justify-content: center; font-weight: 700; transition: all var(--transition-smooth); z-index: 2;
+}
+.gs-step-indicator .step .step-label { margin-top: 8px; font-size: 0.9em; font-weight: 500; }
+.gs-step-indicator .step.active { color: var(--brand-blue); }
+.gs-step-indicator .step.active .step-icon { background: var(--primary-gradient); border-color: transparent; color: white; }
+.gs-step-indicator .step-connector { flex-grow: 1; height: 2px; background-color: var(--border-glass); margin: 0 -10px; transform: translateY(-18px); }
+.gs-step-content { display: none; animation: fadeIn 0.5s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.gs-step-content.active { display: block; }
+
+.gs-step-footer {
+    margin-top: 30px;
+    padding: 24px 0 0 0;
+    border-top: 1px solid var(--border-glass);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.gs-step-footer button[data-action*="next"],
+.gs-step-footer button#gsSendBtn {
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    font-weight: 700;
+    padding: 12px 24px;
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 15px rgba(0, 78, 146, 0.2);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+.gs-step-footer button[data-action*="next"]:hover,
+.gs-step-footer button#gsSendBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 78, 146, 0.3);
+}
+.gs-step-footer button[data-action*="prev"] {
+    background: white;
+    color: var(--brand-blue);
+    border: 1px solid var(--border-glass);
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+.gs-step-footer button[data-action*="prev"]:hover {
+    border-color: var(--brand-cyan);
+    background-color: var(--brand-chrome);
+}
+.gs-step-footer.final { justify-content: flex-end; gap: 15px; }
+
+
+/* ===================================================================
+   2. CONTACT SELECTION & COMPOSER (Steps 2 & 3)
+   =================================================================== */
+
+.contact-selection-controls {
+    display: flex; gap: 15px; margin-bottom: 20px; align-items: center;
+}
+.contact-selection-controls input { flex-grow: 1; }
+.contact-selection-list { max-height: 40vh; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.contact-selection-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--border-color); gap: 15px; transition: background-color var(--transition-fast); }
+.contact-selection-item:hover { background-color: var(--bg-hover); }
+.contact-selection-item:last-child { border-bottom: none; }
+.contact-selection-item label { flex-grow: 1; cursor: pointer; color: var(--text-primary); }
+.contact-selection-item input[type="checkbox"] { flex-shrink: 0; transform: scale(1.2); }
+
+.composer-container { display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px; }
+.composer-area .dynamic-tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.composer-area .dynamic-tags-container .tag-button {
+    background: #ffffff;
+    color: var(--brand-blue);
+    border: 1.5px solid var(--brand-blue);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 50px; /* Pill shape */
+    transition: var(--transition-fast);
+    font-size: 0.95em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+.composer-area .dynamic-tags-container .tag-button:hover {
+    background: var(--brand-blue);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 78, 146, 0.2);
+}
+.composer-area .dynamic-tags-container .tag-button::before {
+    content: 'add_circle_outline';
+    font-family: 'Material Icons';
+    font-size: 16px;
+    opacity: 0.7;
+}
+.preview-area {
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(5px);
+    padding: 24px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-glass);
+}
+.preview-contact-selector { margin-bottom: 15px; }
+.whatsapp-preview { background-color: #E5DDD5; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); padding: 20px; border-radius: var(--radius-sm); min-height: 200px; display: flex; flex-direction: column; justify-content: flex-end; }
+.whatsapp-message-bubble { background-color: #DCF8C6; padding: 10px 15px; border-radius: 8px; max-width: 90%; word-wrap: break-word; align-self: flex-end; box-shadow: var(--shadow-sm); }
+.whatsapp-message-bubble p { margin: 0; white-space: pre-wrap; color: #303030; }
+
+.crm-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--brand-chrome);
+    border-radius: var(--radius-md);
+    font-size: 1em;
+    background-color: #fdfdfd;
+    transition: var(--transition-fast);
+}
+.crm-input:focus {
+    outline: none;
+    border-color: var(--brand-cyan);
+    box-shadow: 0 0 0 4px rgba(0, 210, 255, 0.1);
+    background: white;
+}
+
+.file-upload-wrapper { margin-top: 16px; }
+.file-upload-wrapper .btn-secondary { display: inline-flex; }
+.file-name-display { margin-right: 10px; color: var(--text-secondary); font-style: italic; }
+
+/* ===================================================================
+   3. ACCOUNT & QR MODALS
+   =================================================================== */
+
+.crm-account-widget .profile-button {
+    display: flex; align-items: center; gap: 10px; background-color: var(--bg-card);
+    border: 1px solid var(--border-color); padding: 8px 15px; border-radius: var(--radius-md);
+    cursor: pointer; transition: all var(--transition-fast);
+}
+.crm-account-widget .profile-button:hover { box-shadow: var(--shadow-sm); border-color: var(--text-secondary); }
+.crm-account-widget .default-avatar .material-icons { font-size: 28px; color: var(--text-tertiary); }
+
+/* Header Integration Styles - Premium Look */
+.crm-account-widget.header-integration .profile-button {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 10px 22px;
+    border-radius: 50px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+    text-transform: none;
+    transition: var(--transition-smooth);
+}
+
+.crm-account-widget.header-integration .profile-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 146, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.crm-account-widget.header-integration .profile-button:active {
+    transform: translateY(-1px);
+}
+
+.crm-account-widget.header-integration .default-avatar .material-icons {
+    color: white;
+    font-size: 24px;
+    opacity: 0.9;
+}
+
+.crm-account-widget.header-integration .profile-text {
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.2px;
+    color: white;
+}
+
+#accountInfo .account-details { text-align: center; }
+#accountInfo .account-avatar { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 15px; overflow: hidden; background-color: var(--bg-app); display: flex; align-items: center; justify-content: center; border: 2px solid var(--border-color); }
+#accountInfo .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+#accountInfo .account-avatar .material-icons { font-size: 50px; color: var(--text-tertiary); }
+#accountInfo .detail-label { font-weight: 600; color: var(--text-secondary); }
+#accountInfo .status-active { color: var(--status-success); font-weight: bold; }
+#accountInfo .status-inactive { color: var(--status-error); font-weight: bold; }
+
+.qr-container { text-align: center; }
+.qr-image { max-width: 250px; width: 100%; height: auto; margin: 15px auto; display: block; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.qr-status-text { font-weight: 600; margin-top: 10px; }
+.qr-status-error { color: var(--status-error); }
+.qr-status-info { color: var(--text-secondary); }
+
+/* ===================================================================
+   4. GROUP & CONTACTS IMPORTER
+   =================================================================== */
+
+.group-manager-container { background-color: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
+.group-manager-container .manager-header { padding-bottom: 16px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
+.group-manager-container h1 { margin-top: 0; }
+.group-manager-container .importer-controls { display: flex; gap: 15px; margin-bottom: 20px; }
+.group-manager-container .importer-controls input { flex-grow: 1; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.importer-bulk-actions { padding: 10px; background-color: var(--bg-app); border-bottom: 1px solid var(--border-color); }
+
+/* ===================================================================
+   5. SELECTED CONTACTS MODAL
+   =================================================================== */
+
+.selected-contacts-list { list-style-type: none; padding: 0; margin: 0; max-height: 50vh; overflow-y: auto; }
+.selected-contacts-list li { padding: 10px 15px; border-bottom: 1px solid var(--border-color); }
+.selected-contacts-list li:last-child { border-bottom: none; }
+
+ 
+/* ===================================================================
+   1. GROUP SEND WIZARD & SMART FILTER PANEL
+   =================================================================== */
+
+.gs-modal-content { background-color: var(--bg-card) !important; }
+.gs-step-content[data-step-content="1"] { background-color: var(--bg-app); padding: 24px; border-radius: var(--radius-md); }
+.gs-filter-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
+.gs-filter-panel { display: flex; flex-direction: column; }
+.gs-filter-panel-title { font-size: 1.5em; font-weight: 700; margin-top: 0; margin-bottom: 20px; color: var(--text-primary); }
+.gs-filter-group { border-bottom: 1px solid var(--border-color); }
+.gs-filter-group:last-child { border-bottom: none; }
+.gs-filter-group-header { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 16px 8px; background: none; border: none; cursor: pointer; text-align: right; }
+.gs-filter-group-header span { font-size: 1.1em; font-weight: 600; color: var(--text-secondary); transition: color var(--transition-fast); }
+.gs-filter-group-header .material-icons { transition: transform var(--transition-smooth); }
+.gs-filter-group.open .gs-filter-group-header .material-icons { transform: rotate(180deg); }
+.gs-filter-group-header:hover span { color: var(--text-primary); }
+.gs-filter-group-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-in-out; padding: 0 10px; }
+.gs-filter-group.open .gs-filter-group-content {
+    max-height: 450px; /* Increased height for better visibility */
+    overflow-y: auto;
+    padding: 10px;
+}
+.gs-filter-group-description {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    padding: 0 8px 12px;
+    margin: 0 0 10px 0;
+    border-bottom: 1px dashed var(--border-color);
+}
+.gs-filter-search-wrapper { position: relative; margin: 0 8px 16px; }
+.gs-filter-search { width: 100%; padding: 10px 14px 10px 40px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background-color: var(--bg-card); }
+.gs-filter-search-wrapper .material-icons { position: absolute; top: 50%; transform: translateY(-50%); left: 12px; color: var(--text-tertiary); }
+.gs-filter-options-list { padding: 0 8px; }
+.gs-filter-option { display: flex; align-items: center; }
+.gs-filter-option label { display: flex; align-items: center; width: 100%; padding: 10px 0; cursor: pointer; }
+.gs-filter-option .option-name { flex-grow: 1; color: var(--text-primary); font-weight: 500; }
+.gs-filter-option .option-count { color: var(--text-secondary); font-size: 0.9em; margin-right: 10px; }
+.gs-filter-option input[type="checkbox"] { transform: scale(1.2); margin-left: 12px; accent-color: var(--primary-blue); }
+
+/* --- Alphabet Filter Styles --- */
+.gs-alphabet-filter-container {
+    display: flex;
+    gap: 20px;
+    align-items: flex-end;
+}
+.gs-alphabet-filter-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.gs-alphabet-filter-item label {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+.gs-alphabet-filter-item select {
+    width: 100%;
+}
+
+
+.gs-filter-results { background-color: #fff; padding: 24px; border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; }
+.gs-selected-filters-container { flex-grow: 1; margin-bottom: 20px; }
+.gs-selected-filters-container .placeholder { color: var(--text-tertiary); }
+.gs-selected-filter-tag { display: inline-flex; align-items: center; background-color: var(--primary-blue-light); color: var(--primary-blue); padding: 6px 12px; border-radius: 20px; margin: 0 8px 8px 0; font-weight: 600; }
+.gs-selected-filter-tag button { background: none; border: none; cursor: pointer; margin-right: -4px; margin-left: 4px; display: inline-flex; align-items: center; justify-content: center; color: var(--primary-blue); }
+.gs-selected-filter-tag .material-icons { font-size: 18px; }
+.gs-results-summary { display: flex; align-items: center; gap: 16px; padding-top: 20px; border-top: 1px solid var(--border-color); }
+.gs-results-summary .material-icons { font-size: 48px; color: var(--primary-blue); }
+.gs-results-summary .summary-text { display: flex; flex-direction: column; }
+.gs-results-summary #gsStep1Count { font-size: 2em; font-weight: 700; color: var(--text-primary); }
+.gs-results-summary .summary-text span:last-child { font-size: 1.1em; color: var(--text-secondary); }
+.gs-step-indicator { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; padding: 0 20px; }
+.gs-step-indicator .step { display: flex; flex-direction: column; align-items: center; color: var(--text-tertiary); transition: all var(--transition-smooth); position: relative; }
+.gs-step-indicator .step .step-icon { width: 36px; height: 36px; border-radius: 50%; background-color: var(--bg-hover); border: 2px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-weight: 700; transition: all var(--transition-smooth); z-index: 2; }
+.gs-step-indicator .step .step-label { margin-top: 8px; font-size: 0.9em; font-weight: 500; }
+.gs-step-indicator .step.active { color: var(--primary-blue); }
+.gs-step-indicator .step.active .step-icon { background-color: var(--primary-blue); border-color: var(--primary-blue); color: white; }
+.gs-step-indicator .step-connector { flex-grow: 1; height: 2px; background-color: var(--border-color); margin: 0 -10px; transform: translateY(-18px); }
+.gs-step-content { display: none; animation: fadeIn 0.5s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.gs-step-content.active { display: block; }
+.gs-step-footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+.gs-step-footer.final { justify-content: flex-end; gap: 15px; }
+
+/* ===================================================================
+   2. CONTACT SELECTION & COMPOSER (Steps 2 & 3)
+   =================================================================== */
+
+.contact-selection-controls { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; }
+.contact-selection-controls input { flex-grow: 1; }
+.contact-selection-list { max-height: 40vh; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.contact-selection-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--border-color); gap: 15px; transition: background-color var(--transition-fast); }
+.contact-selection-item:hover { background-color: var(--bg-hover); }
+.contact-selection-item:last-child { border-bottom: none; }
+.contact-selection-item label { flex-grow: 1; cursor: pointer; color: var(--text-primary); }
+.contact-selection-item input[type="checkbox"] { flex-shrink: 0; transform: scale(1.2); }
+.composer-container { display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px; }
+.composer-area .dynamic-tags-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+/* Tag buttons style handled above */
+.preview-area { background-color: var(--bg-app); padding: 20px; border-radius: var(--radius-md); }
+.preview-contact-selector { margin-bottom: 15px; }
+.whatsapp-preview { background-color: #E5DDD5; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); padding: 20px; border-radius: var(--radius-sm); min-height: 200px; display: flex; flex-direction: column; justify-content: flex-end; }
+.whatsapp-message-bubble { background-color: #DCF8C6; padding: 10px 15px; border-radius: 8px; max-width: 90%; word-wrap: break-word; align-self: flex-end; box-shadow: var(--shadow-sm); }
+.whatsapp-message-bubble p { margin: 0; white-space: pre-wrap; color: #303030; }
+.crm-input { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 1em; background-color: #fff; transition: all var(--transition-fast); }
+.crm-input:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px var(--primary-blue-light); }
+.file-upload-wrapper { margin-top: 16px; }
+.file-upload-wrapper .btn-secondary { display: inline-flex; }
+.file-name-display { margin-right: 10px; color: var(--text-secondary); font-style: italic; }
+
+/* ===================================================================
+   3. ACCOUNT & QR MODALS
+   =================================================================== */
+.crm-account-widget .profile-button { display: flex; align-items: center; gap: 10px; background-color: var(--bg-card); border: 1px solid var(--border-color); padding: 8px 15px; border-radius: var(--radius-md); cursor: pointer; transition: all var(--transition-fast); }
+.crm-account-widget .profile-button:hover { box-shadow: var(--shadow-sm); border-color: var(--text-secondary); }
+.crm-account-widget .default-avatar .material-icons { font-size: 28px; color: var(--text-tertiary); }
+#accountInfo .account-details { text-align: center; }
+#accountInfo .account-avatar { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 15px; overflow: hidden; background-color: var(--bg-app); display: flex; align-items: center; justify-content: center; border: 2px solid var(--border-color); }
+#accountInfo .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+#accountInfo .account-avatar .material-icons { font-size: 50px; color: var(--text-tertiary); }
+#accountInfo .detail-label { font-weight: 600; color: var(--text-secondary); }
+#accountInfo .status-active { color: var(--status-success); font-weight: bold; }
+#accountInfo .status-inactive { color: var(--status-error); font-weight: bold; }
+.qr-container { text-align: center; }
+.qr-image { max-width: 250px; width: 100%; height: auto; margin: 15px auto; display: block; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.qr-status-text { font-weight: 600; margin-top: 10px; }
+.qr-status-error { color: var(--status-error); }
+.qr-status-info { color: var(--text-secondary); }
+
+/* ===================================================================
+   4. GROUP & CONTACTS IMPORTER
+   =================================================================== */
+.group-manager-container { background-color: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
+.group-manager-container .manager-header { padding-bottom: 16px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
+.group-manager-container h1 { margin-top: 0; }
+.group-manager-container .importer-controls { display: flex; gap: 15px; margin-bottom: 20px; }
+.group-manager-container .importer-controls input { flex-grow: 1; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.importer-bulk-actions { padding: 10px; background-color: var(--bg-app); border-bottom: 1px solid var(--border-color); }
+
+/* ===================================================================
+   5. SELECTED CONTACTS MODAL
+   =================================================================== */
+.selected-contacts-list { list-style-type: none; padding: 0; margin: 0; max-height: 50vh; overflow-y: auto; }
+.selected-contacts-list li { padding: 10px 15px; border-bottom: 1px solid var(--border-color); }
+.selected-contacts-list li:last-child { border-bottom: none; }

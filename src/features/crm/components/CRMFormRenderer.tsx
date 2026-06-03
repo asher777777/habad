@@ -1,0 +1,539 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { Send, CheckCircle2, Loader2, Coins, CreditCard, ShieldAlert, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { FormConfig, FormField } from "./CRMFormBuilder";
+import { submitCRMForm } from "@/features/crm/actions";
+import { NedarimCheckout } from "@/features/nedarim/NedarimCheckout";
+import { cn } from "@/lib/utils";
+
+interface CRMFormRendererProps {
+  config: FormConfig;
+  formId: string; // usually slug
+  formTitle: string; // page title
+}
+
+export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererProps) {
+  const searchParams = useSearchParams();
+
+  // Form State
+  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Submission Flow States
+  const [submitting, setSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [submissionError, setSubmissionError] = useState("");
+  const [isRecurring, setIsRecurring] = useState(config.payment_frequency === "recurring");
+
+  // Multi-step logic state
+  const [currentStep, setCurrentStep] = useState(1);
+
+  // Payment states
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutData, setCheckoutData] = useState<{
+    amount: number;
+    clientName: string;
+    phone: string;
+    mail: string;
+  } | null>(null);
+
+  // Initialize form field values from default values and URL params
+  useEffect(() => {
+    const initialData: Record<string, string> = {};
+    config.fields.forEach((field) => {
+      let value = field.default_value || "";
+      
+      // Pull from URL parameter if enabled
+      if (field.url_param_enable && field.url_param_name) {
+        const urlVal = searchParams.get(field.url_param_name);
+        if (urlVal !== null) {
+          value = urlVal;
+        }
+      }
+      initialData[field.label] = value;
+    });
+    setFormData(initialData);
+  }, [config.fields, searchParams]);
+
+  // Helper to check conditional logic for a field
+  const isFieldVisible = (field: FormField) => {
+    if (!field.cond_enable) return true;
+    
+    const triggerField = config.fields[field.cond_field_index];
+    if (!triggerField) return true;
+
+    const currentValue = formData[triggerField.label] || "";
+    const operator = field.cond_operator || "is";
+
+    if (operator === "is") {
+      return currentValue === field.cond_value;
+    } else if (operator === "is_not") {
+      return currentValue !== field.cond_value;
+    }
+
+    return true;
+  };
+
+  const handleInputChange = (label: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [label]: value }));
+    if (errors[label]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[label];
+        return next;
+      });
+    }
+  };
+
+  // Get active step counts
+  const visibleFields = config.fields.filter(isFieldVisible);
+  const stepsList = Array.from(new Set(visibleFields.map((f) => f.step || 1))).sort((a, b) => a - b);
+  const totalSteps = stepsList.length > 0 ? Math.max(...stepsList) : 1;
+
+  // Extract payment amount from fields or default config
+  const getPaymentAmount = () => {
+    let amt = config.payment_amount || 0;
+    
+    config.fields.forEach((f) => {
+      if (isFieldVisible(f)) {
+        if (f.map_to === "payment_amount" || f.type === "fixed_amount") {
+          const parsed = parseFloat(formData[f.label]);
+          if (!isNaN(parsed) && parsed > 0) {
+            amt = parsed;
+          }
+        }
+      }
+    });
+    return amt;
+  };
+
+  // Validate only the current step fields
+  const validateCurrentStep = () => {
+    const newErrors: Record<string, string> = {};
+    const currentStepFields = visibleFields.filter((f) => (f.step || 1) === currentStep);
+
+    currentStepFields.forEach((f) => {
+      const val = formData[f.label] || "";
+      if (f.required && !val.trim()) {
+        newErrors[f.label] = "שדה זה הוא חובה";
+      }
+      if (f.type === "email" && val.trim() && !/\S+@\S+\.\S+/.test(val)) {
+        newErrors[f.label] = "כתובת אימייל לא תקינה";
+      }
+      if (f.type === "tel" && val.trim() && val.replace(/\D/g, "").length < 9) {
+        newErrors[f.label] = "מספר טלפון קצר מדי";
+      }
+    });
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return false;
+    }
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (validateCurrentStep()) {
+      setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
+    }
+  };
+
+  const handlePrevStep = () => {
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmissionError("");
+    setErrors({});
+
+    // Final Validation of all visible fields
+    const newErrors: Record<string, string> = {};
+    visibleFields.forEach((f) => {
+      const val = formData[f.label] || "";
+      if (f.required && !val.trim()) {
+        newErrors[f.label] = "שדה זה הוא חובה";
+      }
+      if (f.type === "email" && val.trim() && !/\S+@\S+\.\S+/.test(val)) {
+        newErrors[f.label] = "כתובת אימייל לא תקינה";
+      }
+      if (f.type === "tel" && val.trim() && val.replace(/\D/g, "").length < 9) {
+        newErrors[f.label] = "מספר טלפון קצר מדי";
+      }
+    });
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      // Fallback to first step containing an error
+      const firstErrorField = visibleFields.find((f) => newErrors[f.label]);
+      if (firstErrorField) {
+        setCurrentStep(firstErrorField.step || 1);
+      }
+      return;
+    }
+
+    // Prepare data for submission
+    const cleanFormData: Record<string, string> = {};
+    visibleFields.forEach((f) => {
+      cleanFormData[f.label] = formData[f.label] || "";
+    });
+
+    setSubmitting(true);
+
+    try {
+      if (config.form_type === "standard") {
+        const res = await submitCRMForm({
+          formId,
+          formTitle,
+          formType: "standard",
+          formData: cleanFormData,
+          embeddingPostId: formId,
+          embeddingPostTitle: formTitle,
+          formConfig: config
+        });
+
+        if (res.success) {
+          setSuccessMsg(config.standard_success_message || "הטופס נשלח בהצלחה.");
+          setIsSubmitted(true);
+          
+          if (config.standard_redirect_url) {
+            setTimeout(() => {
+              window.location.href = config.standard_redirect_url;
+            }, 1000);
+          }
+        } else {
+          setSubmissionError(res.error || "שגיאה בשליחת הטופס. אנא נסה שנית.");
+        }
+      } else {
+        let clientName = "";
+        let phone = "";
+        let mail = "";
+
+        visibleFields.forEach((f) => {
+          const val = formData[f.label] || "";
+          if (f.map_to === "conta_name") clientName = val;
+          if (f.map_to === "conta_phone" || f.type === "tel") phone = val;
+          if (f.map_to === "email" || f.type === "email") mail = val;
+        });
+
+        const amount = getPaymentAmount();
+        if (amount <= 0) {
+          throw new Error("סכום לתשלום חייב להיות גדול מ-0");
+        }
+
+        await submitCRMForm({
+          formId,
+          formTitle,
+          formType: "payment",
+          formData: cleanFormData,
+          embeddingPostId: formId,
+          embeddingPostTitle: formTitle,
+          formConfig: config,
+          status: "ממתין לתשלום"
+        });
+
+        setCheckoutData({ amount, clientName, phone, mail });
+        setShowCheckout(true);
+      }
+    } catch (err: any) {
+      setSubmissionError(err.message || "שגיאה לא צפויה בפנייה לשרת");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePaymentSuccess = async () => {
+    if (!checkoutData) return;
+    setSubmitting(true);
+    setShowCheckout(false);
+    setSubmissionError("");
+
+    try {
+      const cleanFormData: Record<string, string> = {};
+      visibleFields.forEach((f) => {
+        cleanFormData[f.label] = formData[f.label] || "";
+      });
+
+      const res = await submitCRMForm({
+        formId,
+        formTitle,
+        formType: "payment",
+        formData: cleanFormData,
+        embeddingPostId: formId,
+        embeddingPostTitle: formTitle,
+        formConfig: config,
+        status: "תשלום בוצע",
+        amountPaid: checkoutData.amount
+      });
+
+      if (res.success) {
+        setSuccessMsg(`התשלום בסך ₪${checkoutData.amount} בוצע והתקבל בהצלחה! קבלה והודעה נשלחו לוואטסאפ.`);
+        setIsSubmitted(true);
+      } else {
+        setSuccessMsg(`התשלום עבר, אך אירעה שגיאה בעדכון ה-CRM: ${res.error}. הנהלת בית חב"ד עודכנה.`);
+        setIsSubmitted(true);
+      }
+    } catch (err: any) {
+      setSubmissionError("שגיאה ברישום התשלום במערכת: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const btnStyle = {
+    backgroundColor: config.submit_button_bg_color || "#25D366",
+    color: config.submit_button_text_color || "#ffffff"
+  };
+
+  if (isSubmitted) {
+    return (
+      <div 
+        style={{ backgroundColor: config.form_bg_color || "#ffffff" }}
+        className="border rounded-[2rem] p-8 shadow-xl text-center space-y-6 animate-in zoom-in-95 duration-500 max-w-[480px] mx-auto"
+      >
+        <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center mx-auto shadow-lg animate-bounce">
+          <CheckCircle2 className="w-10 h-10" />
+        </div>
+        <h3 className="text-2xl font-black text-slate-800 leading-tight">הפעולה בוצעה בהצלחה!</h3>
+        <p className="text-slate-650 text-sm leading-relaxed px-2">
+          {successMsg}
+        </p>
+        <Button
+          onClick={() => {
+            setIsSubmitted(false);
+            setSuccessMsg("");
+            setCheckoutData(null);
+            setCurrentStep(1);
+            const cleanData: Record<string, string> = {};
+            config.fields.forEach((f) => {
+              cleanData[f.label] = f.default_value || "";
+            });
+            setFormData(cleanData);
+          }}
+          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-6 py-2.5 rounded-full border border-slate-200"
+        >
+          שלח טופס חדש
+        </Button>
+      </div>
+    );
+  }
+
+  const fieldBgStyle = config.field_bg_color ? { backgroundColor: config.field_bg_color } : undefined;
+
+  return (
+    <div 
+      style={{ backgroundColor: config.form_bg_color || "#ffffff" }}
+      className="w-full max-w-[480px] border border-slate-100 rounded-[2.5rem] p-6 sm:p-8 shadow-2xl relative overflow-hidden transition-all duration-350 text-right" 
+      dir="rtl"
+    >
+      <div className="absolute -top-10 -left-10 w-24 h-24 bg-indigo-50 rounded-full blur-3xl opacity-60 pointer-events-none" />
+      <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-emerald-50 rounded-full blur-3xl opacity-60 pointer-events-none" />
+
+      {showCheckout && checkoutData ? (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-4 relative z-10">
+          <div className="flex items-center gap-2 text-indigo-900 border-b pb-3 mb-4">
+            <Coins className="w-5 h-5 text-indigo-650" />
+            <h4 className="font-bold text-base">תשלום מאובטח בבית חב"ד</h4>
+          </div>
+          
+          <div className="bg-slate-50 p-4 rounded-2xl border text-xs space-y-1.5 mb-2">
+            <div><strong className="text-slate-500">עבור:</strong> <span className="text-slate-800">{formTitle}</span></div>
+            <div><strong className="text-slate-500">משלם:</strong> <span className="text-slate-800">{checkoutData.clientName || "-- ללא שם --"}</span></div>
+            <div><strong className="text-slate-500">טלפון:</strong> <span className="text-slate-800">{checkoutData.phone}</span></div>
+            <div><strong className="text-slate-500">סכום לחיוב:</strong> <span className="font-black text-indigo-700">₪{checkoutData.amount}</span></div>
+          </div>
+
+          <NedarimCheckout
+            amount={checkoutData.amount}
+            clientName={checkoutData.clientName || "פלוני אלמוני"}
+            phone={checkoutData.phone}
+            mail={checkoutData.mail || "info@chabad.co.il"}
+            receiptType={config.payment_receipt_type}
+            isRecurring={isRecurring}
+            onSuccess={handlePaymentSuccess}
+            onCancel={() => setShowCheckout(false)}
+          />
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
+          {submissionError && (
+            <div className="p-3 bg-red-50 border border-red-100 text-red-700 text-xs font-bold rounded-2xl flex items-center gap-2 animate-shake">
+              <ShieldAlert className="w-4 h-4 shrink-0 text-red-500" />
+              <span>{submissionError}</span>
+            </div>
+          )}
+
+          {/* Steps Progress Bar Indicator */}
+          {totalSteps > 1 && (
+            <div className="flex items-center justify-between mb-6 border-b pb-4">
+              <span className="text-xs font-bold text-slate-500">שלב {currentStep} מתוך {totalSteps}</span>
+              <div className="flex gap-1.5">
+                {Array.from({ length: totalSteps }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-2 w-8 rounded-full transition-all",
+                      i + 1 <= currentStep ? "bg-indigo-600" : "bg-slate-200"
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {config.fields.map((field, idx) => {
+            if (!isFieldVisible(field)) return null;
+
+            // Step filter: only render the fields for the active step
+            // Note: fixed_amount and hidden elements should be rendered at any step so their input elements are in DOM
+            const isHiddenOrFixed = ["hidden", "fixed_amount"].includes(field.type);
+            if (!isHiddenOrFixed && (field.step || 1) !== currentStep) return null;
+
+            const hasError = errors[field.label];
+
+            return (
+              <div key={idx} className="space-y-1">
+                {field.type === "hidden" ? (
+                  <input type="hidden" name={field.label} value={formData[field.label] || ""} />
+                ) : field.type === "fixed_amount" ? (
+                  <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex justify-between items-center text-xs" style={fieldBgStyle}>
+                    <span className="font-semibold text-slate-500">{field.label}:</span>
+                    <span className="font-mono font-bold text-slate-800">₪{formData[field.label] || field.default_value}</span>
+                  </div>
+                ) : (
+                  <>
+                    <label className="block text-xs font-bold text-slate-700">
+                      {field.label}
+                      {field.required && <span className="text-red-500 mr-1">*</span>}
+                    </label>
+
+                    {field.type === "textarea" ? (
+                      <textarea
+                        value={formData[field.label] || ""}
+                        onChange={(e) => handleInputChange(field.label, e.target.value)}
+                        className={cn(
+                          "w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-800 border rounded-xl p-3 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none min-h-[80px]",
+                          hasError ? "border-red-500 bg-red-50/10 focus:ring-red-500/20" : "border-slate-200 focus:border-indigo-500"
+                        )}
+                        style={fieldBgStyle}
+                        required={field.required}
+                      />
+                    ) : field.type === "select" ? (
+                      <select
+                        value={formData[field.label] || ""}
+                        onChange={(e) => handleInputChange(field.label, e.target.value)}
+                        className={cn(
+                          "w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-800 border rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all",
+                          hasError ? "border-red-500 bg-red-50/10 focus:ring-red-500/20" : "border-slate-200 focus:border-indigo-500"
+                        )}
+                        style={fieldBgStyle}
+                        required={field.required}
+                      >
+                        <option value="">בחר...</option>
+                        {field.options.split("\n").map(opt => {
+                          const clean = opt.trim();
+                          if (!clean) return null;
+                          return <option key={clean} value={clean}>{clean}</option>;
+                        })}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "number" ? "number" : "text"}
+                        value={formData[field.label] || ""}
+                        onChange={(e) => handleInputChange(field.label, e.target.value)}
+                        className={cn(
+                          "w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-800 border rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all",
+                          hasError ? "border-red-500 bg-red-50/10" : "border-slate-200 focus:border-indigo-500"
+                        )}
+                        style={fieldBgStyle}
+                        required={field.required}
+                        placeholder={field.type === "tel" ? "למשל: 0501234567" : ""}
+                      />
+                    )}
+
+                    {hasError && (
+                      <p className="text-[10px] text-red-500 font-bold mt-0.5 animate-in slide-in-from-top-1">
+                        {hasError}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
+
+          {config.form_type === "payment" && config.payment_frequency === "user-choice" && currentStep === totalSteps && (
+            <div className="flex items-center gap-3 p-3 bg-blue-50/50 border border-blue-100 rounded-xl mb-4">
+              <button
+                type="button"
+                onClick={() => setIsRecurring(!isRecurring)}
+                className={cn(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                  isRecurring ? 'bg-blue-600' : 'bg-slate-300'
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                    isRecurring ? 'translate-x-6' : 'translate-x-1'
+                  )}
+                />
+              </button>
+              <div className="flex items-center gap-2 text-sm text-blue-900 font-medium">
+                <RefreshCw className="w-4 h-4 text-blue-600" />
+                הפוך לתרומה חודשית קבועה
+              </div>
+            </div>
+          )}
+
+          {/* Stepper Buttons (Prev / Next / Submit) */}
+          <div className="flex gap-3 pt-4">
+            {currentStep > 1 && (
+              <Button
+                type="button"
+                onClick={handlePrevStep}
+                variant="outline"
+                className="flex-1 py-3.5 px-6 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 border-slate-200 hover:bg-slate-50 cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4" />
+                חזור
+              </Button>
+            )}
+            
+            {currentStep < totalSteps ? (
+              <Button
+                type="button"
+                onClick={handleNextStep}
+                style={btnStyle}
+                className="flex-1 py-3.5 px-6 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 shadow-lg transition-all hover:scale-[1.01] cursor-pointer"
+              >
+                המשך
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={submitting}
+                style={btnStyle}
+                className="flex-1 py-3.5 px-6 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-[1.01] cursor-pointer"
+              >
+                {submitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : config.form_type === "payment" ? (
+                  <CreditCard className="w-4 h-4" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                {submitting ? "מעבד..." : config.submit_button_text || "שלח פנייה"}
+              </Button>
+            )}
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
