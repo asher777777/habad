@@ -6,17 +6,12 @@ import { revalidatePath } from "next/cache";
 import { WhatsAppSettings, WhatsAppConnectionState, WhatsAppCampaign, WhatsAppRecipient } from "./types";
 import { ContactEvent } from "../crm/types";
 
-// Helper to get authenticated user ID
 async function getUserId(): Promise<string> {
-  try {
-    const session = await auth();
-    if (session?.user?.id) {
-      return session.user.id;
-    }
-  } catch (error) {
-    // Ignore and fallback
+  const session = await auth();
+  if (session?.user?.id) {
+    return session.user.id;
   }
-  return "1"; // Fallback mock user ID
+  throw new Error("Unauthorized");
 }
 
 // 1. Get WhatsApp Configuration Settings

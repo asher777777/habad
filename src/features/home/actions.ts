@@ -2,6 +2,7 @@
 
 import { adminDb } from "@/lib/firebase-admin";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/lib/auth";
 
 import type { FormConfig } from "@/features/crm/components/CRMFormBuilder";
 
@@ -43,6 +44,8 @@ export interface HomePageConfig {
     secondaryButton?: ButtonConfig;
   };
   services: {
+    title?: string;
+    description?: string;
     layout: "grid" | "carousel" | "list" | "fz" | "bento" | "modular" | "progressive" | "spatial" | "thumb";
     visible: boolean;
     items?: ServiceItem[];
@@ -98,6 +101,10 @@ export interface HomePageConfig {
   };
   mobileHiddenSections?: string[];
   sectionOrder: string[];
+  seo?: {
+    title: string;
+    description: string;
+  };
 }
 
 const DEFAULT_FORM_CONFIG: FormConfig = {
@@ -274,6 +281,8 @@ const DEFAULT_HOME_CONFIG: HomePageConfig = {
     secondaryButton: { text: "זמני שבת וחגים", link: "/shabbat" },
   },
   services: {
+    title: "שירותי דת וקהילה",
+    description: "אנחנו כאן כדי להנגיש לכם את המסורת היהודית בצורה המודרנית והנוחה ביותר.",
     layout: "grid",
     visible: true,
     items: [
@@ -340,112 +349,50 @@ const DEFAULT_HOME_CONFIG: HomePageConfig = {
   sectionOrder: ["hero", "mainContent", "services", "community", "livePosts", "richContent", "contact", "landingSection"],
 };
 
+function mergeWithDefaultConfig(data: any): HomePageConfig {
+  if (!data) return DEFAULT_HOME_CONFIG;
+  
+  const rawSectionOrder = data.sectionOrder || DEFAULT_HOME_CONFIG.sectionOrder;
+  let sectionOrder = rawSectionOrder.includes("landingSection") 
+    ? rawSectionOrder 
+    : [...rawSectionOrder, "landingSection"];
+  if (!sectionOrder.includes("richContent")) {
+    const contactIdx = sectionOrder.indexOf("contact");
+    if (contactIdx !== -1) {
+      sectionOrder = [
+        ...sectionOrder.slice(0, contactIdx),
+        "richContent",
+        ...sectionOrder.slice(contactIdx)
+      ];
+    } else {
+      sectionOrder = [...sectionOrder, "richContent"];
+    }
+  }
+
+  return {
+    hero: { ...DEFAULT_HOME_CONFIG.hero, ...data.hero },
+    mainContent: { ...DEFAULT_HOME_CONFIG.mainContent, ...data.mainContent },
+    services: { ...DEFAULT_HOME_CONFIG.services, ...data.services },
+    community: { ...DEFAULT_HOME_CONFIG.community, ...data.community },
+    livePosts: { ...DEFAULT_HOME_CONFIG.livePosts, ...data.livePosts },
+    contact: { ...DEFAULT_HOME_CONFIG.contact, ...data.contact },
+    landingSection: { ...DEFAULT_HOME_CONFIG.landingSection, ...data.landingSection },
+    richContent: { ...DEFAULT_HOME_CONFIG.richContent, ...data.richContent },
+    mobileHiddenSections: data.mobileHiddenSections || DEFAULT_HOME_CONFIG.mobileHiddenSections || [],
+    sectionOrder,
+    seo: data.seo,
+  } as HomePageConfig;
+}
+
 export async function getHomePageConfig(): Promise<HomePageConfig> {
   try {
     const docRef = adminDb.collection("pages").doc("home");
     const docSnap = await docRef.get();
     
     if (docSnap.exists) {
-      const data = docSnap.data();
-      if (!data) return DEFAULT_HOME_CONFIG;
-      
-      const rawSectionOrder = data.sectionOrder || DEFAULT_HOME_CONFIG.sectionOrder;
-      let sectionOrder = rawSectionOrder.includes("landingSection") 
-        ? rawSectionOrder 
-        : [...rawSectionOrder, "landingSection"];
-      if (!sectionOrder.includes("richContent")) {
-        const contactIdx = sectionOrder.indexOf("contact");
-        if (contactIdx !== -1) {
-          sectionOrder = [
-            ...sectionOrder.slice(0, contactIdx),
-            "richContent",
-            ...sectionOrder.slice(contactIdx)
-          ];
-        } else {
-          sectionOrder = [...sectionOrder, "richContent"];
-        }
-      }
-
-      return {
-        hero: {
-          title: data.hero?.title || DEFAULT_HOME_CONFIG.hero.title,
-          subtitle: data.hero?.subtitle || DEFAULT_HOME_CONFIG.hero.subtitle,
-          description: data.hero?.description || DEFAULT_HOME_CONFIG.hero.description,
-          imageSrc: data.hero?.imageSrc || DEFAULT_HOME_CONFIG.hero.imageSrc,
-          layout: data.hero?.layout || DEFAULT_HOME_CONFIG.hero.layout,
-          buttonsVisible: data.hero?.buttonsVisible ?? DEFAULT_HOME_CONFIG.hero.buttonsVisible,
-          primaryButton: data.hero?.primaryButton || DEFAULT_HOME_CONFIG.hero.primaryButton,
-          secondaryButton: data.hero?.secondaryButton || DEFAULT_HOME_CONFIG.hero.secondaryButton,
-        },
-        mainContent: {
-          visible: data.mainContent?.visible ?? DEFAULT_HOME_CONFIG.mainContent.visible,
-          title: data.mainContent?.title || DEFAULT_HOME_CONFIG.mainContent.title,
-          subtitle: data.mainContent?.subtitle || DEFAULT_HOME_CONFIG.mainContent.subtitle,
-          description: data.mainContent?.description || DEFAULT_HOME_CONFIG.mainContent.description,
-          imageSrc: data.mainContent?.imageSrc || DEFAULT_HOME_CONFIG.mainContent.imageSrc,
-          layout: data.mainContent?.layout || DEFAULT_HOME_CONFIG.mainContent.layout,
-          buttonsVisible: data.mainContent?.buttonsVisible ?? DEFAULT_HOME_CONFIG.mainContent.buttonsVisible,
-          primaryButton: data.mainContent?.primaryButton || DEFAULT_HOME_CONFIG.mainContent.primaryButton,
-          secondaryButton: data.mainContent?.secondaryButton || DEFAULT_HOME_CONFIG.mainContent.secondaryButton,
-        },
-        services: {
-          layout: data.services?.layout || DEFAULT_HOME_CONFIG.services.layout,
-          visible: data.services?.visible ?? DEFAULT_HOME_CONFIG.services.visible,
-          items: data.services?.items || DEFAULT_HOME_CONFIG.services.items,
-        },
-        community: {
-          visible: data.community?.visible ?? DEFAULT_HOME_CONFIG.community.visible,
-          title: data.community?.title ?? DEFAULT_HOME_CONFIG.community.title,
-          subtitle: data.community?.subtitle ?? DEFAULT_HOME_CONFIG.community.subtitle,
-          description: data.community?.description ?? DEFAULT_HOME_CONFIG.community.description,
-          quote: data.community?.quote ?? DEFAULT_HOME_CONFIG.community.quote,
-          imageSrc: data.community?.imageSrc ?? DEFAULT_HOME_CONFIG.community.imageSrc,
-          badgeTitle: data.community?.badgeTitle ?? DEFAULT_HOME_CONFIG.community.badgeTitle,
-          badgeSubtitle: data.community?.badgeSubtitle ?? DEFAULT_HOME_CONFIG.community.badgeSubtitle,
-          buttonText: data.community?.buttonText ?? DEFAULT_HOME_CONFIG.community.buttonText,
-          whatsappNumber: data.community?.whatsappNumber ?? DEFAULT_HOME_CONFIG.community.whatsappNumber,
-          layout: data.community?.layout ?? DEFAULT_HOME_CONFIG.community.layout,
-          badgeVisible: data.community?.badgeVisible ?? DEFAULT_HOME_CONFIG.community.badgeVisible,
-          buttonVisible: data.community?.buttonVisible ?? DEFAULT_HOME_CONFIG.community.buttonVisible,
-        },
-        livePosts: {
-          visible: data.livePosts?.visible ?? DEFAULT_HOME_CONFIG.livePosts.visible,
-          layout: data.livePosts?.layout || DEFAULT_HOME_CONFIG.livePosts.layout,
-          customPages: data.livePosts?.customPages || DEFAULT_HOME_CONFIG.livePosts.customPages,
-        },
-        contact: {
-          visible: data.contact?.visible ?? DEFAULT_HOME_CONFIG.contact.visible,
-          title: data.contact?.title || DEFAULT_HOME_CONFIG.contact.title,
-          subtitle: data.contact?.subtitle || DEFAULT_HOME_CONFIG.contact.subtitle,
-          addressLabel: data.contact?.addressLabel || DEFAULT_HOME_CONFIG.contact.addressLabel,
-          addressVal: data.contact?.addressVal || DEFAULT_HOME_CONFIG.contact.addressVal,
-          phoneLabel: data.contact?.phoneLabel || DEFAULT_HOME_CONFIG.contact.phoneLabel,
-          phoneVal: data.contact?.phoneVal || DEFAULT_HOME_CONFIG.contact.phoneVal,
-          hoursLabel: data.contact?.hoursLabel || DEFAULT_HOME_CONFIG.contact.hoursLabel,
-          hoursVal: data.contact?.hoursVal || DEFAULT_HOME_CONFIG.contact.hoursVal,
-          form: data.contact?.form || DEFAULT_HOME_CONFIG.contact.form || DEFAULT_CONTACT_FORM_CONFIG,
-        },
-        landingSection: {
-          visible: data.landingSection?.visible ?? DEFAULT_HOME_CONFIG.landingSection?.visible ?? true,
-          title: data.landingSection?.title || DEFAULT_HOME_CONFIG.landingSection?.title || "",
-          subtitle: data.landingSection?.subtitle || DEFAULT_HOME_CONFIG.landingSection?.subtitle || "",
-          description: data.landingSection?.description || DEFAULT_HOME_CONFIG.landingSection?.description || "",
-          imageSrc: data.landingSection?.imageSrc || DEFAULT_HOME_CONFIG.landingSection?.imageSrc || "",
-          form: data.landingSection?.form || DEFAULT_HOME_CONFIG.landingSection?.form || DEFAULT_FORM_CONFIG,
-          layout: data.landingSection?.layout || DEFAULT_HOME_CONFIG.landingSection?.layout || "split-left",
-          formMode: data.landingSection?.formMode || DEFAULT_HOME_CONFIG.landingSection?.formMode || "visible",
-          buttonText: data.landingSection?.buttonText || DEFAULT_HOME_CONFIG.landingSection?.buttonText || "להקדשה ותרומה",
-        },
-        richContent: {
-          visible: data.richContent?.visible ?? DEFAULT_HOME_CONFIG.richContent?.visible ?? true,
-          heading: data.richContent?.heading || DEFAULT_HOME_CONFIG.richContent?.heading || "",
-          body: data.richContent?.body || DEFAULT_HOME_CONFIG.richContent?.body || "",
-          layout: data.richContent?.layout || DEFAULT_HOME_CONFIG.richContent?.layout || "center",
-        },
-        mobileHiddenSections: data.mobileHiddenSections || DEFAULT_HOME_CONFIG.mobileHiddenSections || [],
-        sectionOrder,
-      } as HomePageConfig;
+      return mergeWithDefaultConfig(docSnap.data());
     }
+    return DEFAULT_HOME_CONFIG;
     return DEFAULT_HOME_CONFIG;
   } catch (error) {
     console.warn(`Error fetching home page config:`, (error as Error).message);
@@ -454,14 +401,44 @@ export async function getHomePageConfig(): Promise<HomePageConfig> {
 }
 
 export async function saveHomePageConfig(content: Partial<HomePageConfig>) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+  return savePageConfig("pages", "home", content);
+}
+
+export async function savePageConfig(collectionName: string, docId: string, content: Partial<HomePageConfig>) {
   try {
-    const docRef = adminDb.collection("pages").doc("home");
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+
+    const docRef = adminDb.collection(collectionName).doc(docId);
     await docRef.set({ ...content, updatedAt: new Date().toISOString() }, { merge: true });
-    revalidatePath("/");
+    
+    // Revalidate relevant paths
+    if (collectionName === "pages" && docId === "home") revalidatePath("/");
+    else if (collectionName === "services") revalidatePath(`/service/${docId}`);
+    else if (collectionName === "landing") revalidatePath(`/landing/${docId}`);
+    else if (collectionName === "posts") revalidatePath(`/post/${docId}`);
+    
     return { success: true };
   } catch (error) {
-    console.warn(`Error saving home page config:`, (error as Error).message);
+    console.warn(`Error saving page config for ${collectionName}/${docId}:`, (error as Error).message);
     throw new Error("Failed to save to Firebase");
+  }
+}
+
+export async function getPageConfig(collectionName: string, docId: string): Promise<HomePageConfig | null> {
+  try {
+    const docRef = adminDb.collection(collectionName).doc(docId);
+    const docSnap = await docRef.get();
+    
+    if (docSnap.exists) {
+      return mergeWithDefaultConfig(docSnap.data());
+    }
+    return null;
+  } catch (error) {
+    console.warn(`Error fetching page config for ${collectionName}/${docId}:`, (error as Error).message);
+    return null;
   }
 }
 
@@ -503,9 +480,9 @@ export async function getAllSitePages() {
       const data = doc.data();
       allPages.push({
         id: doc.id,
-        title: data.title || doc.id,
-        description: data.summary || "",
-        imageSrc: data.imageUrl || "",
+        title: data.hero?.title || data.title || data.seo?.title || doc.id,
+        description: data.hero?.description || data.summary || data.seo?.description || "",
+        imageSrc: data.hero?.imageSrc || data.imageUrl || "",
         url: `/post/${doc.id}`,
         icon: "Newspaper"
       });

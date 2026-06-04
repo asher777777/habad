@@ -52,6 +52,10 @@ export async function getAllPosts(): Promise<LivePost[]> {
 
 export async function savePost(id: string, postData: Partial<LivePost>) {
   try {
+    const { auth } = await import("@/lib/auth");
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+
     const docRef = adminDb.collection("posts").doc(id);
     const now = new Date().toISOString();
     await docRef.set(
@@ -72,6 +76,10 @@ export async function savePost(id: string, postData: Partial<LivePost>) {
 
 export async function deletePost(id: string) {
   try {
+    const { auth } = await import("@/lib/auth");
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+
     const docRef = adminDb.collection("posts").doc(id);
     await docRef.delete();
     revalidatePath("/dashboard");
@@ -144,6 +152,10 @@ async function generatePostImageWithAI(prompt: string, apiKey: string) {
 
 export async function generatePostWithAI(prompt: string) {
   try {
+    const { auth } = await import("@/lib/auth");
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+
     let apiKey = process.env.GEMINI_API_KEY || "";
     if (!apiKey) {
       const aiSettings = await getAiSettings();

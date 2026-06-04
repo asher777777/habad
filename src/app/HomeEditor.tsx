@@ -10,7 +10,7 @@ import { LivePostsGrid } from "@/components/sections/LivePostsGrid";
 import { ContactSection } from "@/components/sections/ContactSection";
 import { LandingSection } from "@/components/sections/LandingSection";
 import { RichContentSection } from "@/components/sections/RichContentSection";
-import { HomePageConfig, saveHomePageConfig, getAllSitePages } from "@/features/home/actions";
+import { HomePageConfig, savePageConfig, getAllSitePages } from "@/features/home/actions";
 import { GlobalSettings, saveGlobalSettings } from "@/features/settings/actions";
 import { 
   Save, 
@@ -48,6 +48,8 @@ interface HomeEditorProps {
   globalSettings: GlobalSettings;
   setGlobalSettings: React.Dispatch<React.SetStateAction<GlobalSettings>>;
   setIsEditing: (val: boolean) => void;
+  pageId?: string;
+  collectionName?: string;
 }
 
 export function HomeEditor({
@@ -57,7 +59,9 @@ export function HomeEditor({
   setConfig,
   globalSettings,
   setGlobalSettings,
-  setIsEditing
+  setIsEditing,
+  pageId,
+  collectionName
 }: HomeEditorProps) {
   const [saving, setSaving] = useState(false);
   
@@ -108,7 +112,11 @@ export function HomeEditor({
   const handleSave = async () => {
     setSaving(true);
     try {
-      await saveHomePageConfig(config);
+      if (collectionName && pageId) {
+        await savePageConfig(collectionName, pageId, config);
+      } else {
+        await savePageConfig("pages", "home", config);
+      }
       await saveGlobalSettings(globalSettings);
       sessionStorage.setItem("home_editor_scroll", window.scrollY.toString());
       setIsEditing(false);
@@ -282,10 +290,13 @@ export function HomeEditor({
               </select>
             </div>
             <ServicesGrid 
+              title={config.services.title}
+              description={config.services.description}
               layout={config.services.layout} 
               items={config.services.items} 
               isEditing={true} 
               onUpdate={(items) => setConfig({ ...config, services: { ...config.services, items } })}
+              onHeaderUpdate={(field, val) => setConfig({ ...config, services: { ...config.services, [field]: val } })}
             />
           </div>
         );

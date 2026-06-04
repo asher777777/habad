@@ -1,13 +1,15 @@
-import { getServicePage } from "@/features/services/actions";
-import { LandingPageClient } from "./LandingPageClient";
+import { getGlobalSettings } from "@/features/settings/actions";
+import { getPageConfig } from "@/features/home/actions";
+import { HomeClient } from "@/app/HomeClient";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { PageViewTracker } from "@/components/ui/PageViewTracker";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
-  const page = await getServicePage(resolvedParams.slug);
+  const page = await getPageConfig("landing", resolvedParams.slug);
   
-  if (!page || page.type !== "landing") return { title: "דף נחיתה לא נמצא" };
+  if (!page) return { title: "דף נחיתה לא נמצא" };
   
   return {
     title: page.seo?.title || page.hero?.title || "דף נחיתה",
@@ -17,11 +19,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function LandingPage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = await params;
-  const page = await getServicePage(resolvedParams.slug);
+  const page = await getPageConfig("landing", resolvedParams.slug);
+  const globalSettings = await getGlobalSettings();
   
-  if (!page || page.type !== "landing") {
+  if (!page) {
     notFound();
   }
 
-  return <LandingPageClient initialData={page} slug={resolvedParams.slug} />;
+  return (
+    <>
+      <PageViewTracker slug={resolvedParams.slug} />
+      <HomeClient initialConfig={page} initialGlobalSettings={globalSettings} collectionName="landing" pageId={resolvedParams.slug} />
+    </>
+  );
 }

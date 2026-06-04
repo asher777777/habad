@@ -1,59 +1,29 @@
-import { adminDb } from "@/lib/firebase-admin";
+import { getGlobalSettings } from "@/features/settings/actions";
+import { getPageConfig } from "@/features/home/actions";
+import { HomeClient } from "@/app/HomeClient";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { PostPageClient } from "./PostPageClient";
 
-interface PostPageProps {
-  params: Promise<{ id: string }>;
-}
-
-async function getPostData(id: string) {
-  try {
-    const docRef = adminDb.collection("posts").doc(id);
-    const docSnap = await docRef.get();
-    if (docSnap.exists) {
-      const data = docSnap.data();
-      if (data?.published) {
-        return { id: docSnap.id, ...data } as any;
-      }
-    }
-    return null;
-  } catch (error) {
-    console.warn(`Error fetching public post ${id}:`, (error as Error).message);
-    return null;
-  }
-}
-
-export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
-  const post = await getPostData(resolvedParams.id);
+  const page = await getPageConfig("posts", resolvedParams.id);
   
-  if (!post) return { title: "פוסט לא נמצא - בית חב\"ד" };
+  if (!page) return { title: "פוסט לא נמצא" };
   
   return {
-    title: `${post.title} | בית חב\"ד`,
-    description: post.summary,
-    openGraph: {
-      title: post.title,
-      description: post.summary,
-      images: [
-        {
-          url: post.imageUrl && !post.imageUrl.startsWith("linear-gradient") ? post.imageUrl : "/images/hero-fallback.jpg",
-          width: 1200,
-          height: 630,
-        }
-      ]
-    }
+    title: page.seo?.title || page.hero?.title || "פוסט בבלוג",
+    description: page.seo?.description || page.hero?.description || "קראו את הפוסט בבלוג",
   };
 }
 
-export default async function PublicPostPage({ params }: PostPageProps) {
+export default async function PublicPostPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
-  const post = await getPostData(resolvedParams.id);
-
-  if (!post) {
+  const page = await getPageConfig("posts", resolvedParams.id);
+  const globalSettings = await getGlobalSettings();
+  
+  if (!page) {
     notFound();
   }
 
-  return <PostPageClient initialData={post} id={resolvedParams.id} />;
+  return <HomeClient initialConfig={page} initialGlobalSettings={globalSettings} collectionName="posts" pageId={resolvedParams.id} />;
 }

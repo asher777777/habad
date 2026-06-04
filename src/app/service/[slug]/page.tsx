@@ -1,11 +1,13 @@
-import { getServicePage } from "@/features/services/actions";
-import { ServicePageClient } from "./ServicePageClient";
+import { getGlobalSettings } from "@/features/settings/actions";
+import { getPageConfig } from "@/features/home/actions";
+import { HomeClient } from "@/app/HomeClient";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { PageViewTracker } from "@/components/ui/PageViewTracker";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
-  const service = await getServicePage(resolvedParams.slug);
+  const service = await getPageConfig("services", resolvedParams.slug);
   
   if (!service) return { title: "Service Not Found" };
   
@@ -17,11 +19,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ServicePage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = await params;
-  const service = await getServicePage(resolvedParams.slug);
+  const service = await getPageConfig("services", resolvedParams.slug);
+  const globalSettings = await getGlobalSettings();
   
   if (!service) {
     notFound();
   }
 
-  return <ServicePageClient initialData={service} slug={resolvedParams.slug} />;
+  return (
+    <>
+      <PageViewTracker slug={resolvedParams.slug} />
+      <HomeClient initialConfig={service} initialGlobalSettings={globalSettings} collectionName="services" pageId={resolvedParams.slug} />
+    </>
+  );
 }

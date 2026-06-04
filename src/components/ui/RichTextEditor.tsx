@@ -41,6 +41,13 @@ export function RichTextEditor({
          return true; 
       }
     },
+    controls: {
+      font: {
+        list: {
+          'var(--font-heebo), sans-serif': 'Heebo'
+        }
+      }
+    },
     buttons: [
       'source', '|',
       'bold',

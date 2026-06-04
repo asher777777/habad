@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/useAuthStore";
 
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -16,24 +17,39 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
   const setUser = useAuthStore((state) => state.setUser);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === "admin" && password === "123456") {
-      setUser({
-        id: "1",
-        name: "Admin",
-        email: "admin@habad.local",
-        role: "ADMIN",
+    setLoading(true);
+    setError("");
+
+    try {
+      const result = await signIn("credentials", {
+        username,
+        password,
+        redirect: false,
       });
-      setUsername("");
-      setPassword("");
-      setError("");
-      onClose();
-      router.push("/dashboard");
-    } else {
-      setError("שם משתמש או סיסמה שגויים");
+
+      if (result?.error) {
+        setError("שם משתמש או סיסמה שגויים");
+      } else if (result?.ok) {
+        setUser({
+          id: "1",
+          name: "Admin",
+          email: "admin@habad.local",
+          role: "ADMIN",
+        });
+        setUsername("");
+        setPassword("");
+        onClose();
+        router.push("/dashboard");
+      }
+    } catch (err) {
+      setError("שגיאה בהתחברות, נסה שוב");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,8 +82,10 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
             />
           </div>
           <Modal.Footer>
-            <Button type="button" variant="outline" onClick={onClose} className="ml-2">ביטול</Button>
-            <Button type="submit" variant="primary">התחבר</Button>
+            <Button type="button" variant="outline" onClick={onClose} className="ml-2" disabled={loading}>ביטול</Button>
+            <Button type="submit" variant="primary" disabled={loading}>
+              {loading ? "מתחבר..." : "התחבר"}
+            </Button>
           </Modal.Footer>
         </form>
       </Modal.Content>

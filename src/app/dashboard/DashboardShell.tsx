@@ -11,7 +11,7 @@ const dashboardLinks = [
   { name: "ניהול CRM", href: "/dashboard/crm", icon: Users },
   { name: "וואטסאפ", href: "/dashboard/whatsapp", icon: MessageSquare },
   { name: "קבלות ידניות", href: "/dashboard/receipts", icon: FileText },
-  { name: "שירותי AI", href: "/dashboard/services", icon: Sparkles },
+  { name: "יצירת תוכן", href: "/dashboard/services", icon: Sparkles },
   { name: "הגדרות", href: "/dashboard/settings", icon: Settings },
 ];
 

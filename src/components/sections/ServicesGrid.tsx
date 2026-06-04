@@ -8,14 +8,70 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { ServiceItem } from "@/features/home/actions";
 
+import { useState } from "react";
+import { AITextHelper } from "@/components/ui/AITextHelper";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
+
 const ServicesGridEditor = dynamic(() => import("./ServicesGridEditor").then(m => m.ServicesGridEditor), { ssr: false });
 
 interface ServicesGridProps {
+  title?: string;
+  description?: string;
   layout?: "grid" | "carousel" | "list" | "fz" | "bento" | "modular" | "progressive" | "spatial" | "thumb";
   items?: ServiceItem[];
   isEditing?: boolean;
   onUpdate?: (newItems: ServiceItem[]) => void;
+  onHeaderUpdate?: (field: string, value: string) => void;
 }
+
+const EditableText = ({ 
+  tag: Tag = "p", 
+  value, 
+  onChange, 
+  isEditing, 
+  className = "",
+  richText = false
+}: any) => {
+  const [isFocused, setIsFocused] = useState(false);
+  
+  if (!isEditing) {
+    if (richText) return <div className={cn("rich-content", className)} dangerouslySetInnerHTML={{ __html: value || "" }} />;
+    return <Tag className={className}>{value}</Tag>;
+  }
+
+  if (richText) {
+    return (
+      <div className={cn("relative group/text rounded-xl outline-none hover:bg-slate-50 transition-colors cursor-text min-h-[50px] focus-within:ring-2 focus-within:ring-primary focus-within:bg-white", className)}>
+        <RichTextEditor value={value} onChange={onChange} />
+        <AITextHelper className="absolute -top-3 -right-3" value={value} onChange={(val) => onChange(val)} />
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("relative group/text w-full max-w-full", isFocused ? "z-20" : "")}>
+      <Tag
+        contentEditable
+        suppressContentEditableWarning
+        onFocus={() => setIsFocused(true)}
+        onBlur={(e: any) => {
+          setIsFocused(false);
+          onChange(e.currentTarget.textContent || "");
+        }}
+        className={cn(
+          "w-full outline-none hover:bg-slate-100 focus:bg-slate-100 focus:ring-2 focus:ring-primary/50 transition-all cursor-text rounded break-words p-1 -mx-1 block",
+          className
+        )}
+      >
+        {value}
+      </Tag>
+      <div className="absolute top-0 right-0 h-full flex items-center pr-2 -mr-12 opacity-0 group-hover/text:opacity-100 transition-opacity pointer-events-none">
+        <LucideIcons.Edit2 className="w-4 h-4 text-slate-400" />
+      </div>
+      <AITextHelper className="absolute -top-3 -right-3" value={value} onChange={(val) => onChange(val)} />
+    </div>
+  );
+};
 
 // Helper to get Icon component safely
 const getIcon = (iconName: string) => {
@@ -23,7 +79,7 @@ const getIcon = (iconName: string) => {
   return Icon || LucideIcons.FileQuestion;
 };
 
-export const ServicesGrid = ({ layout = "grid", items = [], isEditing, onUpdate }: ServicesGridProps) => {
+export const ServicesGrid = ({ title, description, layout = "grid", items = [], isEditing, onUpdate, onHeaderUpdate }: ServicesGridProps) => {
   const visibleItems = isEditing ? items : items.filter(item => item.isVisible !== false);
 
   const renderAdminPanel = () => {
@@ -50,7 +106,7 @@ export const ServicesGrid = ({ layout = "grid", items = [], isEditing, onUpdate 
           {visibleItems.map((service, index) => (
             <Link
               key={index}
-              href={service.url}
+              href={service.url || "#"}
               className={cn(
                 "bg-card border rounded-3xl transition-all duration-500 hover:shadow-2xl hover:border-primary/20 group cursor-pointer",
                 layout === "grid" && "p-8 flex flex-col items-center text-center hover:-translate-y-2",
@@ -94,7 +150,7 @@ export const ServicesGrid = ({ layout = "grid", items = [], isEditing, onUpdate 
           {visibleItems.map((service, index) => {
             const Icon = getIcon(service.icon);
             return (
-              <Link key={index} href={service.url} className="group flex flex-col md:flex-row items-center bg-white rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-xl border border-transparent hover:border-slate-100 transition-all gap-8">
+              <Link key={index} href={service.url || "#"} className="group flex flex-col md:flex-row items-center bg-white rounded-3xl p-6 md:p-8 shadow-sm hover:shadow-xl border border-transparent hover:border-slate-100 transition-all gap-8">
                 <div className="flex-1 w-full md:w-auto">
                   <div className="flex items-center gap-4 mb-4">
                     {!service.imageSrc && (
@@ -136,7 +192,7 @@ export const ServicesGrid = ({ layout = "grid", items = [], isEditing, onUpdate 
             const Icon = getIcon(service.icon);
             
             return (
-              <Link key={index} href={service.url} className={cn(
+              <Link key={index} href={service.url || "#"} className={cn(
                 "group relative bg-white rounded-[2rem] p-8 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-slate-100 flex flex-col",
                 isLarge ? "md:col-span-2 md:row-span-2 bg-slate-900 text-white border-none" : "",
                 isWide ? "md:col-span-2" : ""
@@ -184,7 +240,7 @@ export const ServicesGrid = ({ layout = "grid", items = [], isEditing, onUpdate 
             {visibleItems.map((service, index) => {
               const Icon = getIcon(service.icon);
               return (
-                <Link key={index} href={service.url} className="flex flex-col md:flex-row items-start md:items-center p-4 md:p-6 hover:bg-slate-50 transition-colors group">
+                <Link key={index} href={service.url || "#"} className="flex flex-col md:flex-row items-start md:items-center p-4 md:p-6 hover:bg-slate-50 transition-colors group">
                   <div className="w-16 shrink-0 mb-4 md:mb-0">
                     <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-primary group-hover:text-white transition-colors">
                       <Icon className="w-6 h-6" />
@@ -220,7 +276,7 @@ export const ServicesGrid = ({ layout = "grid", items = [], isEditing, onUpdate 
                 
                 <div className="opacity-0 translate-y-8 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 delay-100 mt-28">
                   <p className="text-slate-500 mb-6 text-sm leading-relaxed">{service.description}</p>
-                  <Link href={service.url} className="inline-flex items-center text-primary font-bold hover:underline">
+                  <Link href={service.url || "#"} className="inline-flex items-center text-primary font-bold hover:underline">
                     למידע נוסף <LucideIcons.ArrowLeft className="w-4 h-4 mr-1" />
                   </Link>
                 </div>
@@ -238,7 +294,7 @@ export const ServicesGrid = ({ layout = "grid", items = [], isEditing, onUpdate 
           {visibleItems.map((service, index) => {
             const Icon = getIcon(service.icon);
             return (
-              <Link key={index} href={service.url} className="group block relative perspective-1000">
+              <Link key={index} href={service.url || "#"} className="group block relative perspective-1000">
                 <div className="transform-style-3d group-hover:rotate-y-[-5deg] group-hover:rotate-x-[5deg] transition-transform duration-700 ease-out">
                   <div className="bg-white rounded-[3rem] p-12 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] border border-slate-50 aspect-square flex flex-col justify-between relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
@@ -272,7 +328,7 @@ export const ServicesGrid = ({ layout = "grid", items = [], isEditing, onUpdate 
           {visibleItems.map((service, index) => {
             const Icon = getIcon(service.icon);
             return (
-              <Link key={index} href={service.url} className="bg-white rounded-3xl p-5 shadow-sm active:scale-95 transition-transform flex items-center gap-4 border border-slate-100">
+              <Link key={index} href={service.url || "#"} className="bg-white rounded-3xl p-5 shadow-sm active:scale-95 transition-transform flex items-center gap-4 border border-slate-100">
                 <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
                   <Icon className="w-6 h-6 text-indigo-600" />
                 </div>
@@ -303,10 +359,8 @@ export const ServicesGrid = ({ layout = "grid", items = [], isEditing, onUpdate 
     <section className="py-24 px-6 bg-background relative overflow-hidden">
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="text-center mb-16 space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
-          <h2 className="text-3xl md:text-5xl font-bold text-primary">שירותי דת וקהילה</h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            אנחנו כאן כדי להנגיש לכם את המסורת היהודית בצורה המודרנית והנוחה ביותר.
-          </p>
+          <EditableText tag="h2" value={title || "שירותי דת וקהילה"} onChange={(v: string) => onHeaderUpdate?.("title", v)} isEditing={isEditing} className="text-3xl md:text-5xl font-bold text-primary" />
+          <EditableText tag="p" value={description || ""} onChange={(v: string) => onHeaderUpdate?.("description", v)} isEditing={isEditing} className="text-muted-foreground text-lg max-w-2xl mx-auto" />
         </div>
 
         {renderAdminPanel()}

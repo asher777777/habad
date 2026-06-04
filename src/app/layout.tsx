@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import { Heebo, Assistant } from "next/font/google";
+import { Heebo } from "next/font/google";
 import "./globals.css";
 
 const heebo = Heebo({
   variable: "--font-heebo",
   subsets: ["hebrew", "latin"],
-  weight: ["300", "400", "500", "700", "800", "900"],
-});
-
-const assistant = Assistant({
-  variable: "--font-assistant",
-  subsets: ["hebrew", "latin"],
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
 export const metadata: Metadata = {
@@ -36,9 +31,9 @@ export default async function RootLayout({
       lang="he"
       dir="rtl"
       data-scroll-behavior="smooth"
-      className={`${heebo.variable} ${assistant.variable} h-full antialiased theme-${globalSettings.theme || "navy"}`}
+      className={`${heebo.variable} h-full antialiased theme-${globalSettings.theme || "navy"} overflow-x-hidden`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col overflow-x-hidden">
         <QueryProvider>
           {children}
           <WhatsAppButton 

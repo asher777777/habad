@@ -34,6 +34,10 @@ export async function getShabbatTimes(): Promise<ShabbatTimesData | null> {
 
 export async function saveShabbatTimes(data: ShabbatTimesData) {
   try {
+    const { auth } = await import("@/lib/auth");
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+
     const docRef = adminDb.collection("configs").doc("shabbat");
     await docRef.set(data);
     return { success: true };

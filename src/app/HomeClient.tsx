@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { Hero } from "@/components/sections/Hero";
-import { ServicesGrid } from "@/components/sections/ServicesGrid";
-import { CommunitySection } from "@/components/sections/CommunitySection";
-import { LivePostsGrid } from "@/components/sections/LivePostsGrid";
-import { ContactSection } from "@/components/sections/ContactSection";
-import { LandingSection } from "@/components/sections/LandingSection";
-import { RichContentSection } from "@/components/sections/RichContentSection";
+const Hero = dynamic(() => import("@/components/sections/Hero").then(m => m.Hero), { ssr: true });
+const ServicesGrid = dynamic(() => import("@/components/sections/ServicesGrid").then(m => m.ServicesGrid), { ssr: true });
+const CommunitySection = dynamic(() => import("@/components/sections/CommunitySection").then(m => m.CommunitySection), { ssr: true });
+const LivePostsGrid = dynamic(() => import("@/components/sections/LivePostsGrid").then(m => m.LivePostsGrid), { ssr: true });
+const ContactSection = dynamic(() => import("@/components/sections/ContactSection").then(m => m.ContactSection), { ssr: true });
+const LandingSection = dynamic(() => import("@/components/sections/LandingSection").then(m => m.LandingSection), { ssr: true });
+const RichContentSection = dynamic(() => import("@/components/sections/RichContentSection").then(m => m.RichContentSection), { ssr: true });
 import { HomePageConfig } from "@/features/home/actions";
 import { GlobalSettings } from "@/features/settings/actions";
 import { Edit3 } from "lucide-react";
@@ -23,9 +23,11 @@ const HomeEditor = dynamic(() => import("./HomeEditor").then(m => m.HomeEditor),
 interface HomeClientProps {
   initialConfig: HomePageConfig;
   initialGlobalSettings?: GlobalSettings;
+  pageId?: string;
+  collectionName?: string;
 }
 
-export function HomeClient({ initialConfig, initialGlobalSettings }: HomeClientProps) {
+export function HomeClient({ initialConfig, initialGlobalSettings, pageId, collectionName }: HomeClientProps) {
   const { isAuthenticated } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [config, setConfig] = useState<HomePageConfig>(initialConfig);
@@ -52,6 +54,8 @@ export function HomeClient({ initialConfig, initialGlobalSettings }: HomeClientP
         globalSettings={globalSettings}
         setGlobalSettings={setGlobalSettings}
         setIsEditing={setIsEditing}
+        pageId={pageId}
+        collectionName={collectionName}
       />
     );
   }
@@ -91,6 +95,8 @@ export function HomeClient({ initialConfig, initialGlobalSettings }: HomeClientP
         if (!config.services.visible) return null;
         return (
           <ServicesGrid 
+            title={config.services.title}
+            description={config.services.description}
             layout={config.services.layout} 
             items={config.services.items} 
             isEditing={false}

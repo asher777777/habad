@@ -40,11 +40,12 @@ export function DashboardQuickActions() {
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isServiceOpen, setIsServiceOpen] = useState(false);
-
-  // Service form states
+  const [wizardStep, setWizardStep] = useState(1);
   const [serviceType, setServiceType] = useState<'service' | 'landing' | 'post'>("service");
   const [serviceSlug, setServiceSlug] = useState("");
   const [servicePrompt, setServicePrompt] = useState("");
+  const [serviceTone, setServiceTone] = useState("חם, מקרב ומזמין");
+  const [serviceAudience, setServiceAudience] = useState("כל הקהילה (חילונים ומסורתיים)");
   const [serviceLoading, setServiceLoading] = useState(false);
   const [serviceError, setServiceError] = useState("");
 
@@ -59,9 +60,10 @@ export function DashboardQuickActions() {
     setServiceError("");
 
     try {
-      const result = await generatePageWithAI(servicePrompt, serviceSlug, serviceType);
+      const result = await generatePageWithAI(servicePrompt, serviceSlug, serviceType, serviceTone, serviceAudience);
       if (result.success) {
         setIsServiceOpen(false);
+        setWizardStep(1);
         setServiceSlug("");
         setServicePrompt("");
         
@@ -194,74 +196,117 @@ export function DashboardQuickActions() {
             </div>
 
             <form onSubmit={handleCreateService} className="space-y-5 text-right" dir="rtl">
-              {/* Type Selection */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-600">1. בחר את סוג העמוד</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  {PAGE_TYPES.map((t) => {
-                    const isSelected = serviceType === t.id;
-                    const TIcon = t.icon;
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setServiceType(t.id)}
-                        className={`p-3 rounded-2xl border-2 text-right transition-all duration-300 flex flex-col gap-2 relative overflow-hidden ${
-                          isSelected 
-                            ? 'border-indigo-600 bg-indigo-50/10 shadow-sm' 
-                            : `border-slate-100 bg-white ${t.bg}`
-                        }`}
-                      >
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br ${
-                          isSelected ? t.color : 'from-slate-100 to-slate-200 text-slate-500'
-                        } text-white transition-all`}>
-                          <TIcon className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-slate-800 text-xs">{t.label}</h4>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* Step 1: Type & Goal */}
+              {wizardStep === 1 && (
+                <div className="space-y-5 animate-in fade-in zoom-in-95 duration-300">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-600">1. בחירת סוג העמוד</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      {PAGE_TYPES.map((t) => {
+                        const isSelected = serviceType === t.id;
+                        const TIcon = t.icon;
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setServiceType(t.id)}
+                            className={`p-3 rounded-2xl border-2 text-right transition-all duration-300 flex flex-col gap-2 relative overflow-hidden ${
+                              isSelected 
+                                ? 'border-indigo-600 bg-indigo-50/10 shadow-sm' 
+                                : `border-slate-100 bg-white ${t.bg}`
+                            }`}
+                          >
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br ${
+                              isSelected ? t.color : 'from-slate-100 to-slate-200 text-slate-500'
+                            } text-white transition-all`}>
+                              <TIcon className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-slate-800 text-xs">{t.label}</h4>
+                              <p className="text-[10px] text-slate-500 mt-1">{t.desc}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-              {/* Slug Input */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-600">2. הגדר כתובת אינטרנט (Slug)</label>
-                <div className="flex items-center gap-2" dir="ltr">
-                  <span className="text-slate-400 font-mono text-xs bg-slate-50 border px-3 py-2 rounded-xl">
-                    /{serviceType === 'post' ? 'post' : serviceType === 'landing' ? 'landing' : 'service'}/
-                  </span>
-                  <input
-                    type="text"
-                    value={serviceSlug}
-                    onChange={(e) => setServiceSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                    placeholder="e.g. shabbat-dinner"
-                    className="flex-1 p-2.5 border rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-xs transition-all"
-                    dir="ltr"
-                    required
-                  />
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-600">2. הגדר כתובת אינטרנט (Slug)</label>
+                    <div className="flex items-center gap-2" dir="ltr">
+                      <span className="text-slate-400 font-mono text-xs bg-slate-50 border px-3 py-2 rounded-xl">
+                        /{serviceType === 'post' ? 'post' : serviceType === 'landing' ? 'landing' : 'service'}/
+                      </span>
+                      <input
+                        type="text"
+                        value={serviceSlug}
+                        onChange={(e) => setServiceSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                        placeholder="e.g. shabbat-dinner"
+                        className="flex-1 p-2.5 border rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-xs transition-all"
+                        dir="ltr"
+                        required
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Prompt Input */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-600">3. על מה העמוד? (הנחיה ל-AI)</label>
-                <textarea
-                  value={servicePrompt}
-                  onChange={(e) => setServicePrompt(e.target.value)}
-                  placeholder={
-                    serviceType === 'service' 
-                      ? "לדוגמה: עמוד שירות בדיקת מזוזות ותפילין בבית הלקוח."
-                      : serviceType === 'landing'
-                      ? "לדוגמה: דף נחיתה להרשמה לסעודת שבת קהילתית."
-                      : "לדוגמה: פוסט חיזוק קצר לפרשת השבוע."
-                  }
-                  className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-xs min-h-[90px] transition-all resize-none"
-                  required
-                />
-              </div>
+              {/* Step 2: Tone & Audience */}
+              {wizardStep === 2 && (
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-600">3. קהל יעד מרכזי</label>
+                    <select
+                      value={serviceAudience}
+                      onChange={(e) => setServiceAudience(e.target.value)}
+                      className="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-xs transition-all bg-white"
+                    >
+                      <option value="כל הקהילה (חילונים ומסורתיים)">כל הקהילה (חילונים ומסורתיים)</option>
+                      <option value="סטודנטים וצעירים">סטודנטים וצעירים</option>
+                      <option value="משפחות צעירות">משפחות צעירות</option>
+                      <option value="קהל דתי/חרדי">קהל דתי/חרדי</option>
+                      <option value="גיל הזהב">גיל הזהב</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-600">4. טון וסגנון כתיבה</label>
+                    <select
+                      value={serviceTone}
+                      onChange={(e) => setServiceTone(e.target.value)}
+                      className="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-xs transition-all bg-white"
+                    >
+                      <option value="חם, מקרב ומזמין">חם, מקרב ומזמין (ברירת מחדל)</option>
+                      <option value="מרגש ורוחני">מרגש ורוחני</option>
+                      <option value="צעיר, קליל ודינמי">צעיר, קליל ודינמי</option>
+                      <option value="רשמי, ענייני ומכובד">רשמי, ענייני ומכובד</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Prompt */}
+              {wizardStep === 3 && (
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-600">5. על מה העמוד? (הנחיה ל-AI)</label>
+                    <textarea
+                      value={servicePrompt}
+                      onChange={(e) => setServicePrompt(e.target.value)}
+                      placeholder={
+                        serviceType === 'service' 
+                          ? "לדוגמה: עמוד שירות לבדיקת מזוזות ותפילין עם הדגשת השירות בבית הלקוח."
+                          : serviceType === 'landing'
+                          ? "לדוגמה: דף נחיתה למסיבת פורים קהילתית, כולל טופס רישום למשפחות."
+                          : "לדוגמה: פוסט חיזוק קצר לפרשת השבוע על חשיבות השמחה."
+                      }
+                      className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-xs min-h-[120px] transition-all resize-none"
+                      required
+                    />
+                    <p className="text-[10px] text-slate-400">ה-AI ייצר עבורך באופן אוטומטי מבנה מלא עם טפסים מתאימים ומיקום נכון לכל אזור לפי בחירתך.</p>
+                  </div>
+                </div>
+              )}
 
               {serviceError && (
                 <p className="text-red-500 text-xs font-bold bg-red-50 p-2.5 rounded-xl border border-red-100">
@@ -270,23 +315,55 @@ export function DashboardQuickActions() {
               )}
 
               <Modal.Footer>
-                <div className="flex gap-2.5 justify-end w-full">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setIsServiceOpen(false)}
-                    className="rounded-xl px-4 h-10 text-xs font-bold"
-                  >
-                    ביטול
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={serviceLoading} 
-                    className={`gap-2 text-white font-bold bg-gradient-to-r ${selectedTypeObj?.color} rounded-xl px-5 h-10 text-xs shadow-md hover:shadow-lg transition-all`}
-                  >
-                    {serviceLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-                    {serviceLoading ? "מייצר תוכן..." : "חולל עמוד ב-AI"}
-                  </Button>
+                <div className="flex gap-2.5 justify-between w-full">
+                  <div>
+                    {wizardStep > 1 && (
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => setWizardStep(wizardStep - 1)}
+                        className="rounded-xl px-4 h-10 text-xs font-bold"
+                      >
+                        חזור
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex gap-2.5">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => { setIsServiceOpen(false); setWizardStep(1); }}
+                      className="rounded-xl px-4 h-10 text-xs font-bold"
+                    >
+                      ביטול
+                    </Button>
+                    
+                    {wizardStep < 3 ? (
+                      <Button 
+                        type="button" 
+                        onClick={() => {
+                          if (wizardStep === 1 && (!serviceSlug)) {
+                            setServiceError("נא למלא את כתובת ה-Slug");
+                            return;
+                          }
+                          setServiceError("");
+                          setWizardStep(wizardStep + 1);
+                        }}
+                        className={`gap-2 text-white font-bold bg-gradient-to-r ${selectedTypeObj?.color} rounded-xl px-5 h-10 text-xs shadow-md hover:shadow-lg transition-all`}
+                      >
+                        המשך לשלב הבא
+                      </Button>
+                    ) : (
+                      <Button 
+                        type="submit" 
+                        disabled={serviceLoading} 
+                        className={`gap-2 text-white font-bold bg-gradient-to-r ${selectedTypeObj?.color} rounded-xl px-5 h-10 text-xs shadow-md hover:shadow-lg transition-all`}
+                      >
+                        {serviceLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                        {serviceLoading ? "מייצר תוכן ובונה דף..." : "חולל עמוד ב-AI"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </Modal.Footer>
             </form>

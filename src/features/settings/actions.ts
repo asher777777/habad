@@ -63,6 +63,10 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
 
 export async function saveGlobalSettings(settings: Partial<GlobalSettings>) {
   try {
+    const { auth } = await import("@/lib/auth");
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+
     const docRef = adminDb.collection("settings").doc("global");
     await docRef.set({ ...settings, updatedAt: new Date().toISOString() }, { merge: true });
     revalidatePath("/", "layout");

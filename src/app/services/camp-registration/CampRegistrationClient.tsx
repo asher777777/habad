@@ -192,21 +192,21 @@ export function CampRegistrationClient({ initialData }: { initialData: any }) {
       )}
 
       {/* Hero Section */}
-      <section className={`pt-20 pb-12 px-4 text-center relative overflow-hidden ${!isEditing ? "mt-0" : "mt-0"}`}>
+      <section className={`pt-20 pb-12 px-4 text-center relative overflow-visible ${!isEditing ? "mt-0" : "mt-0"} z-[100]`}>
         {/* Background Layer */}
         {content.hero?.imageSrc ? (
-          <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 z-0 overflow-hidden">
             <img src={content.hero.imageSrc} className="w-full h-full object-cover opacity-30" alt="Hero" />
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/50" />
           </div>
         ) : (
-          <>
+          <div className="absolute inset-0 z-0 overflow-hidden">
             <div className={`absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 ${activeTheme.abstractShape1} rounded-full blur-3xl opacity-30 z-0`}></div>
             <div className={`absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 ${activeTheme.abstractShape2} rounded-full blur-3xl opacity-20 z-0`}></div>
-          </>
+          </div>
         )}
         
-        <div className="max-w-4xl mx-auto relative z-10">
+        <div className="max-w-4xl mx-auto relative z-50">
           {isEditing ? (
             <div className="bg-white/80 backdrop-blur-md p-8 rounded-3xl border border-slate-200 space-y-4 text-right mb-8 shadow-sm">
               <h4 className="font-bold flex items-center gap-2 border-b pb-2"><Settings className="w-4 h-4"/> עריכת כותרות Hero</h4>

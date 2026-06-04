@@ -154,7 +154,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-heebo), var(--font-assistant), sans-serif;
+    font-family: var(--font-heebo), sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }

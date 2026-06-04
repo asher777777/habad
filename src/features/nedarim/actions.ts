@@ -25,6 +25,10 @@ export async function getNedarimSettings() {
 
 export async function saveNedarimSettings(settings: { mosadid: string; apivalid: string; group: string; apipassword?: string }) {
   try {
+    const { auth } = await import("@/lib/auth");
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+
     const docRef = adminDb.collection("configs").doc("nedarim_settings");
     await docRef.set(settings, { merge: true });
     return { success: true };
@@ -172,6 +176,10 @@ export async function createManualInvoice(data: {
   transferRef?: string;
 }) {
   try {
+    const { auth } = await import("@/lib/auth");
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+
     const settings = await getNedarimSettings();
     if (!settings?.mosadid || !settings?.apipassword) {
       return { success: false, error: "לא הוגדרה סיסמת API לדוחות בהגדרות נדרים פלוס." };

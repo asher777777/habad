@@ -1,6 +1,7 @@
 "use server";
 
 import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { auth } from "@/lib/auth";
 import { Contact } from "./types";
 import { revalidatePath } from "next/cache";
@@ -661,6 +662,19 @@ export async function submitCRMForm(params: {
         await contactsRef.doc(contactDoc.id).update({
           events: [...(contactDataCurrent.events || []), whatsappEvent]
         });
+      }
+    }
+
+    // Increment analytics on the service/landing page if it exists
+    if (params.embeddingPostId) {
+      try {
+        const serviceRef = adminDb.collection("services").doc(params.embeddingPostId);
+        const incrementField = amountPaid ? "purchases" : "leads";
+        await serviceRef.set({
+          [incrementField]: FieldValue.increment(1)
+        }, { merge: true });
+      } catch (err) {
+        console.error("Failed to increment analytics on service doc:", err);
       }
     }
 

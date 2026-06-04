@@ -19,6 +19,10 @@ export async function getAiSettings() {
 
 export async function saveAiSettings(settings: { googleAiKey: string }) {
   try {
+    const { auth } = await import("@/lib/auth");
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+
     const docRef = adminDb.collection("settings").doc("ai");
     await docRef.set({ ...settings, updatedAt: new Date().toISOString() }, { merge: true });
     return { success: true };
@@ -70,8 +74,8 @@ export async function rephraseTextWithAI(
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Use gemini-3.1-pro model as specified by the user
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro" });
+    // Use gemini-3.1-pro-preview model as specified by the user
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
     
     const toneGuidelines: Record<string, string> = {
       warm: "סגנון קהילתי, חם, מסביר פנים, מחבק ומקרב לבבות. השתמש במילים שיוצרות תחושת שייכות, חמימות ומשפחתיות (למשל: 'מרגישים בבית', 'כולם מוזמנים', 'באהבה ובשמחה').",
