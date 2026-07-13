@@ -16,6 +16,7 @@ export interface LivePost {
   published: boolean;
   createdAt: string;
   updatedAt: string;
+  formConfig?: any;
 }
 
 export async function getAllPosts(): Promise<LivePost[]> {
@@ -95,35 +96,34 @@ export async function togglePublishPost(id: string, currentState: boolean) {
   return savePost(id, { published: !currentState });
 }
 
-// Helper to generate Imagen 4.0 matching hero banner
+// Helper to generate Imagen 3.0 matching hero banner
 async function generatePostImageWithAI(prompt: string, apiKey: string) {
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          instances: [{ prompt }],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio: "16:9",
-            outputMimeType: "image/jpeg",
-          },
+          contents: [
+            {
+              parts: [{ text: prompt }]
+            }
+          ]
         }),
       }
     );
 
     if (!response.ok) {
-      throw new Error(`Imagen response error: ${response.statusText}`);
+      throw new Error(`Gemini Image response error: ${response.statusText}`);
     }
 
     const data = await response.json();
-    const base64Image = data.predictions?.[0]?.bytesBase64Encoded;
+    const base64Image = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!base64Image) {
-      throw new Error("No image data received from Imagen");
+      throw new Error("No image data received from Gemini");
     }
 
     const { adminStorage } = await import("@/lib/firebase-admin");
@@ -150,7 +150,7 @@ async function generatePostImageWithAI(prompt: string, apiKey: string) {
   }
 }
 
-export async function generatePostWithAI(prompt: string) {
+export async function generatePostWithAI(prompt: string, formConfig?: any) {
   try {
     const { auth } = await import("@/lib/auth");
     const session = await auth();
@@ -225,7 +225,8 @@ Return ONLY the raw JSON. No markdown, no wrap in code blocks.`;
       published: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      imageUrl
+      imageUrl,
+      ...(formConfig ? { formConfig } : {})
     };
 
     await savePost(id, dataToSave);

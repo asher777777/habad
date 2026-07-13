@@ -47,7 +47,7 @@ export function AiSettingsForm() {
           required
         />
         <p className="text-xs text-muted-foreground mt-2">
-          מפתח זה משמש ליצירת דפי שירותים ותוכן באמצעות בינה מלאכותית (Gemini 1.5).
+          מפתח זה משמש ליצירת דפי שירותים ותוכן באמצעות בינה מלאכותית (Gemini 3.1 Pro).
         </p>
       </div>
       <Button type="submit" disabled={isSaving} className="w-full h-12">

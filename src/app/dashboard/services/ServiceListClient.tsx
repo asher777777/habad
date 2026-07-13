@@ -15,13 +15,22 @@ export function ServiceListClient({ initialServices }: ServiceListClientProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  const handleDelete = async (slug: string) => {
+  const handleDelete = async (slug: string, type: string) => {
+    if (slug === 'shabbat') {
+      alert("עמוד שבת הוא עמוד מערכת מובנה ולא ניתן למחוק אותו.");
+      return;
+    }
+    
     if (!confirm("האם אתה בטוח שברצונך למחוק עמוד זה? פעולה זו אינה הפיכה.")) return;
     
     setIsDeleting(slug);
     try {
-      await deleteServicePage(slug);
-      setServices(prev => prev.filter(s => s.slug !== slug));
+      const result = await deleteServicePage(slug, type);
+      if (result?.success) {
+        setServices(prev => prev.filter(s => s.slug !== slug));
+      } else {
+        alert("שגיאה במחיקת העמוד: " + (result?.error || "שגיאה לא ידועה"));
+      }
     } catch (e: any) {
       alert("שגיאה במחיקת העמוד: " + e.message);
     } finally {
@@ -62,27 +71,30 @@ export function ServiceListClient({ initialServices }: ServiceListClientProps) {
 
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {services.map((service) => {
+          {services.map((service, index) => {
             const isLanding = service.type === "landing";
-            const pagePath = isLanding ? `/landing/${service.slug}` : `/service/${service.slug}`;
+            const isShabbat = service.type === "shabbat";
+            const pagePath = isShabbat ? "/shabbat" : (isLanding ? `/landing/${service.slug}` : `/service/${service.slug}`);
             
             return (
-              <div key={service.slug} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300 flex flex-col justify-between group">
+              <div key={`${service.slug}-${index}`} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300 flex flex-col justify-between group">
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 ${
-                      isLanding 
+                      isShabbat ? "bg-amber-50 text-amber-600 border border-amber-100" : (isLanding 
                         ? "bg-purple-50 text-purple-600 border border-purple-100" 
-                        : "bg-blue-50 text-blue-600 border border-blue-100"
+                        : "bg-blue-50 text-blue-600 border border-blue-100")
                     }`}>
-                      {isLanding ? (
+                      {isShabbat ? (
+                        <><Sparkles className="w-3 h-3" />עמוד מיוחד</>
+                      ) : isLanding ? (
                         <><Sparkles className="w-3 h-3" />דף נחיתה</>
                       ) : (
                         <><Layout className="w-3 h-3" />עמוד שירות</>
                       )}
                     </span>
                     <button 
-                      onClick={() => handleDelete(service.slug)}
+                      onClick={() => handleDelete(service.slug, service.type)}
                       disabled={isDeleting === service.slug}
                       className="text-slate-300 hover:text-red-500 transition-colors p-1"
                       title="מחק עמוד"
@@ -100,8 +112,8 @@ export function ServiceListClient({ initialServices }: ServiceListClientProps) {
                 </div>
                 
                 <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-                  <span className="text-[11px] font-mono text-slate-400 bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-xl truncate max-w-[140px]" title={isLanding ? `/landing/${service.slug}` : `/service/${service.slug}`}>
-                    {isLanding ? `/landing/` : `/service/`}{service.slug}
+                  <span className="text-[11px] font-mono text-slate-400 bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-xl truncate max-w-[140px]" title={pagePath}>
+                    {pagePath}
                   </span>
                   <div className="flex gap-2">
                     <Link href={pagePath} target="_blank">
@@ -136,24 +148,25 @@ export function ServiceListClient({ initialServices }: ServiceListClientProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {services.map((service) => {
+                {services.map((service, index) => {
                   const isLanding = service.type === "landing";
-                  const pagePath = isLanding ? `/landing/${service.slug}` : `/service/${service.slug}`;
+                  const isShabbat = service.type === "shabbat";
+                  const pagePath = isShabbat ? "/shabbat" : (isLanding ? `/landing/${service.slug}` : `/service/${service.slug}`);
                   
                   return (
-                    <tr key={service.slug} className="hover:bg-slate-50/50 transition-colors group">
+                    <tr key={`${service.slug}-${index}`} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-6 py-4 font-bold text-slate-800">
                         {service.hero?.title || service.slug}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
-                          isLanding ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600"
+                          isShabbat ? "bg-amber-50 text-amber-600" : (isLanding ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600")
                         }`}>
-                          {isLanding ? "דף נחיתה" : "עמוד שירות"}
+                          {isShabbat ? "עמוד מיוחד" : (isLanding ? "דף נחיתה" : "עמוד שירות")}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-slate-400 font-mono text-[11px] truncate max-w-[120px]">
-                        {isLanding ? `/landing/` : `/service/`}{service.slug}
+                        {pagePath}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-1.5 text-slate-600">
@@ -186,7 +199,7 @@ export function ServiceListClient({ initialServices }: ServiceListClientProps) {
                             </Button>
                           </Link>
                           <button 
-                            onClick={() => handleDelete(service.slug)}
+                            onClick={() => handleDelete(service.slug, service.type)}
                             disabled={isDeleting === service.slug}
                             className="h-8 w-8 rounded-lg flex items-center justify-center border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors disabled:opacity-50"
                             title="מחק עמוד"

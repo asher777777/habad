@@ -102,7 +102,7 @@ export const WhatsAppButton = ({
       <button
         onClick={() => setIsOpen(true)}
         className={cn(
-          "fixed bottom-6 right-6 z-[999] flex items-center gap-2.5 px-6 py-4.5 rounded-full shadow-2xl transition-all duration-300",
+          "print:hidden fixed bottom-6 right-6 z-[999] flex items-center gap-2.5 px-6 py-4.5 rounded-full shadow-2xl transition-all duration-300",
           "bg-secondary hover:bg-secondary/95 text-secondary-foreground hover:scale-105 active:scale-95 group cursor-pointer"
         )}
         aria-label="אנחנו כאן - צור קשר"

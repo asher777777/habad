@@ -10,6 +10,7 @@ export interface NavLink {
 
 export interface GlobalSettings {
   siteLogoUrl: string;
+  siteFaviconUrl?: string;
   headerLayout: "classic" | "center" | "left";
   theme: "navy" | "emerald" | "rose" | "violet" | "charcoal";
   navLinks: NavLink[];
@@ -21,6 +22,7 @@ export interface GlobalSettings {
 
 const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   siteLogoUrl: "", // Empty means use default Heart icon
+  siteFaviconUrl: "",
   headerLayout: "classic",
   theme: "navy",
   navLinks: [
@@ -45,6 +47,7 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
       const data = docSnap.data();
       return {
         siteLogoUrl: data?.siteLogoUrl || "",
+        siteFaviconUrl: data?.siteFaviconUrl || "",
         headerLayout: data?.headerLayout || "classic",
         theme: data?.theme || "navy",
         navLinks: data?.navLinks || DEFAULT_GLOBAL_SETTINGS.navLinks,

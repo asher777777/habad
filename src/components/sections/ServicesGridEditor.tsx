@@ -93,8 +93,8 @@ export function ServicesGridEditor({ items, onUpdate }: ServicesGridEditorProps)
               defaultValue=""
             >
               <option value="" disabled>-- בחר עמוד כדי לשאוב את הנתונים שלו --</option>
-              {availablePages.map(page => (
-                <option key={page.id} value={page.url}>{page.title} ({page.url})</option>
+              {availablePages.map((page, index) => (
+                <option key={`${page.id}-${index}`} value={page.url}>{page.title} ({page.url})</option>
               ))}
             </select>
             <p className="text-xs text-indigo-500 mt-1">בחירה תשלוף אוטומטית כותרת, תיאור, קישור ותמונה ראשית (אם קיימת).</p>

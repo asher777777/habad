@@ -15,8 +15,10 @@ interface CRMFormRendererProps {
   formTitle: string; // page title
 }
 
-export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererProps) {
+export function CRMFormRenderer({ config = {} as FormConfig, formId, formTitle }: CRMFormRendererProps) {
   const searchParams = useSearchParams();
+  const safeConfig = config || {};
+  const fields = safeConfig.fields || [];
 
   // Form State
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -27,24 +29,26 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [submissionError, setSubmissionError] = useState("");
-  const [isRecurring, setIsRecurring] = useState(config.payment_frequency === "recurring");
+  const [isRecurring, setIsRecurring] = useState(safeConfig.payment_frequency === "recurring");
 
   // Multi-step logic state
   const [currentStep, setCurrentStep] = useState(1);
 
   // Payment states
   const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   const [checkoutData, setCheckoutData] = useState<{
     amount: number;
     clientName: string;
     phone: string;
     mail: string;
+    installments?: number;
   } | null>(null);
 
   // Initialize form field values from default values and URL params
   useEffect(() => {
     const initialData: Record<string, string> = {};
-    config.fields.forEach((field) => {
+    fields.forEach((field) => {
       let value = field.default_value || "";
       
       // Pull from URL parameter if enabled
@@ -57,13 +61,13 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
       initialData[field.label] = value;
     });
     setFormData(initialData);
-  }, [config.fields, searchParams]);
+  }, [fields, searchParams]);
 
   // Helper to check conditional logic for a field
   const isFieldVisible = (field: FormField) => {
     if (!field.cond_enable) return true;
     
-    const triggerField = config.fields[field.cond_field_index];
+    const triggerField = fields[field.cond_field_index];
     if (!triggerField) return true;
 
     const currentValue = formData[triggerField.label] || "";
@@ -90,24 +94,45 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
   };
 
   // Get active step counts
-  const visibleFields = config.fields.filter(isFieldVisible);
+  const visibleFields = fields.filter(isFieldVisible);
   const stepsList = Array.from(new Set(visibleFields.map((f) => f.step || 1))).sort((a, b) => a - b);
   const totalSteps = stepsList.length > 0 ? Math.max(...stepsList) : 1;
 
   // Extract payment amount from fields or default config
-  const getPaymentAmount = () => {
-    let amt = config.payment_amount || 0;
+  const getPaymentAmount = (currentInstallments?: number) => {
+    let amt = safeConfig.payment_amount || 0;
+    let isMonthlyMap = false;
     
-    config.fields.forEach((f) => {
+    let inst = currentInstallments;
+    if (inst === undefined) {
+      fields.forEach((f) => {
+        if (f.map_to === "payment_installments") {
+          const val = formData[f.label] || "";
+          const parsed = parseInt(val);
+          if (parsed > 0) inst = parsed;
+        }
+      });
+    }
+    if (inst === undefined) inst = 1;
+    
+    fields.forEach((f) => {
       if (isFieldVisible(f)) {
-        if (f.map_to === "payment_amount" || f.type === "fixed_amount") {
+        if (f.map_to === "payment_amount" || f.map_to === "payment_monthly_amount" || f.type === "fixed_amount") {
           const parsed = parseFloat(formData[f.label]);
           if (!isNaN(parsed) && parsed > 0) {
             amt = parsed;
+            if (f.map_to === "payment_monthly_amount") {
+              isMonthlyMap = true;
+            }
           }
         }
       }
     });
+
+    if (isMonthlyMap && !isRecurring && inst > 1) {
+      amt = amt * inst;
+    }
+    
     return amt;
   };
 
@@ -212,15 +237,20 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
         let clientName = "";
         let phone = "";
         let mail = "";
+        let installments = isRecurring ? 0 : 1;
 
         visibleFields.forEach((f) => {
           const val = formData[f.label] || "";
           if (f.map_to === "conta_name") clientName = val;
           if (f.map_to === "conta_phone" || f.type === "tel") phone = val;
           if (f.map_to === "email" || f.type === "email") mail = val;
+          if ((f.map_to === "payment_installments" || f.label.includes("תשלומים")) && val) {
+            const parsed = parseInt(val);
+            if (!isNaN(parsed) && parsed >= 0) installments = parsed;
+          }
         });
 
-        const amount = getPaymentAmount();
+        const amount = getPaymentAmount(installments);
         
         // Check if user selected cash/bank transfer to bypass credit card checkout
         const isCashPayment = Object.entries(formData).some(([key, val]) => 
@@ -261,7 +291,7 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
           status: "ממתין לתשלום (אשראי)"
         });
 
-        setCheckoutData({ amount, clientName, phone, mail });
+        setCheckoutData({ amount, clientName, phone, mail, installments });
         setShowCheckout(true);
       }
     } catch (err: any) {
@@ -365,12 +395,27 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
             <h4 className="font-bold text-base">תשלום מאובטח בבית חב"ד</h4>
           </div>
           
-          <div className="bg-slate-50 p-4 rounded-2xl border text-xs space-y-1.5 mb-2">
-            <div><strong className="text-slate-500">עבור:</strong> <span className="text-slate-800">{formTitle}</span></div>
-            <div><strong className="text-slate-500">משלם:</strong> <span className="text-slate-800">{checkoutData.clientName || "-- ללא שם --"}</span></div>
-            <div><strong className="text-slate-500">טלפון:</strong> <span className="text-slate-800">{checkoutData.phone}</span></div>
-            <div><strong className="text-slate-500">סכום לחיוב:</strong> <span className="font-black text-indigo-700">₪{checkoutData.amount}</span></div>
-          </div>
+          {!selectedPaymentMethod && (
+            <div className="bg-slate-50 p-4 rounded-2xl border text-xs space-y-1.5 mb-2 animate-in fade-in">
+              <div><strong className="text-slate-500">עבור:</strong> <span className="text-slate-800">{formTitle}</span></div>
+              <div><strong className="text-slate-500">משלם:</strong> <span className="text-slate-800">{checkoutData.clientName || "-- ללא שם --"}</span></div>
+              <div><strong className="text-slate-500">טלפון:</strong> <span className="text-slate-800">{checkoutData.phone}</span></div>
+              <div>
+                <strong className="text-slate-500">סכום וסוג חיוב:</strong>{" "}
+                <span className="font-black text-indigo-700">
+                  {isRecurring ? (
+                    `₪${checkoutData.amount} לחודש (הוראת קבע${checkoutData.installments && checkoutData.installments > 0 ? ` ל-${checkoutData.installments} חודשים` : ' ללא הגבלת זמן'})`
+                  ) : (
+                    checkoutData.installments && checkoutData.installments > 1 ? (
+                      `₪${checkoutData.amount} (עסקת תשלומים: ${checkoutData.installments} תשלומים של ₪${Number((checkoutData.amount / checkoutData.installments).toFixed(2))} לחודש)`
+                    ) : (
+                      `₪${checkoutData.amount} (חד-פעמי)`
+                    )
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
 
           <NedarimCheckout
             amount={checkoutData.amount}
@@ -378,9 +423,15 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
             phone={checkoutData.phone}
             mail={checkoutData.mail || "info@chabad.co.il"}
             receiptType={config.payment_receipt_type}
+            requireZehut={config.payment_require_zehut}
             isRecurring={isRecurring}
+            installments={checkoutData.installments}
+            onMethodSelected={(method) => setSelectedPaymentMethod(method)}
             onSuccess={handlePaymentSuccess}
-            onCancel={() => setShowCheckout(false)}
+            onCancel={() => {
+              setShowCheckout(false);
+              setSelectedPaymentMethod(null);
+            }}
           />
         </div>
       ) : (
@@ -423,120 +474,149 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
             </div>
           )}
 
-          {config.fields.map((field, idx) => {
-            if (!isFieldVisible(field)) return null;
+          <div className="flex flex-wrap -mx-2">
+            {fields.map((field, idx) => {
+              if (!isFieldVisible(field)) return null;
 
-            // Step filter: only render the fields for the active step
-            // Note: fixed_amount and hidden elements should be rendered at any step so their input elements are in DOM
-            const isHiddenOrFixed = ["hidden", "fixed_amount"].includes(field.type);
-            if (!isHiddenOrFixed && (field.step || 1) !== currentStep) return null;
+              // Step filter: only render the fields for the active step
+              // Note: fixed_amount and hidden elements should be rendered at any step so their input elements are in DOM
+              const isHiddenOrFixed = ["hidden", "fixed_amount"].includes(field.type);
+              if (!isHiddenOrFixed && (field.step || 1) !== currentStep) return null;
 
-            const hasError = errors[field.label];
+              const hasError = errors[field.label];
 
-            return (
-              <div key={idx} className="space-y-1">
-                {field.type === "hidden" ? (
-                  <input type="hidden" name={field.label} value={formData[field.label] || ""} />
-                ) : field.type === "fixed_amount" ? (
-                  <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex justify-between items-center text-xs" style={fieldBgStyle}>
-                    <span className="font-semibold text-slate-500">{field.label}:</span>
-                    <span className="font-mono font-bold text-slate-800">₪{formData[field.label] || field.default_value}</span>
-                  </div>
-                ) : (
-                  <>
-                    <label className="block text-xs font-bold text-slate-700">
-                      {field.label}
-                      {field.required && <span className="text-red-500 mr-1">*</span>}
-                    </label>
-
-                    {field.type === "textarea" ? (
-                      <textarea
-                        value={formData[field.label] || ""}
-                        onChange={(e) => handleInputChange(field.label, e.target.value)}
+              return (
+                <div key={idx} className="space-y-1 px-2 mb-4" style={{ width: `${field.widthPercentage || 100}%` }}>
+                  {field.type === "hidden" ? (
+                    <input type="hidden" name={field.label} value={formData[field.label] || ""} />
+                  ) : field.type === "fixed_amount" ? (
+                    <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex justify-between items-center text-xs" style={fieldBgStyle}>
+                      <span className="font-semibold text-slate-500">{field.label}:</span>
+                      <span className="font-mono font-bold text-slate-800">₪{formData[field.label] || field.default_value}</span>
+                    </div>
+                  ) : field.type === "recurring_toggle" ? (
+                    <div className="flex items-center justify-between p-4 bg-blue-50/30 border border-blue-100 rounded-2xl w-full shadow-sm" style={fieldBgStyle}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextVal = !isRecurring;
+                          setIsRecurring(nextVal);
+                          handleInputChange(field.label, nextVal ? "true" : "false");
+                        }}
                         className={cn(
-                          "w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-800 border rounded-xl p-3 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none min-h-[80px]",
-                          hasError ? "border-red-500 bg-red-50/10 focus:ring-red-500/20" : "border-slate-200 focus:border-indigo-500"
+                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 focus:outline-none",
+                          isRecurring ? 'bg-blue-600' : 'bg-slate-350'
                         )}
-                        style={fieldBgStyle}
-                        required={field.required}
-                      />
-                    ) : field.type === "select" ? (
-                      field.options.split("\n").filter(o => o.trim()).length <= 4 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                          {field.options.split("\n").filter(o => o.trim()).map(opt => {
-                            const clean = opt.trim();
-                            const isSelected = formData[field.label] === clean;
-                            return (
-                              <label
-                                key={clean}
-                                className={cn(
-                                  "relative flex items-center p-4 rounded-2xl border-2 cursor-pointer transition-all",
-                                  isSelected 
-                                    ? "border-orange-400 bg-orange-50/50" 
-                                    : "border-slate-200 bg-white hover:border-orange-200"
-                                )}
-                                style={fieldBgStyle}
-                              >
-                                <input
-                                  type="radio"
-                                  name={field.label}
-                                  value={clean}
-                                  checked={isSelected}
-                                  onChange={(e) => handleInputChange(field.label, e.target.value)}
-                                  className="w-5 h-5 text-orange-500 border-slate-300 ml-3"
-                                  required={field.required && !formData[field.label]}
-                                />
-                                <span className="font-bold text-slate-700 leading-tight">{clean}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <select
+                        dir="ltr"
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200",
+                            isRecurring ? 'translate-x-6' : 'translate-x-1'
+                          )}
+                        />
+                      </button>
+                      <div className="flex items-center gap-2 text-sm text-blue-905 font-bold">
+                        <RefreshCw className="w-4 h-4 text-blue-655 shrink-0" />
+                        <span>{field.label}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <label className="block text-xs font-bold text-slate-700">
+                        {field.label}
+                        {field.required && <span className="text-red-500 mr-1">*</span>}
+                      </label>
+
+                      {field.type === "textarea" ? (
+                        <textarea
                           value={formData[field.label] || ""}
                           onChange={(e) => handleInputChange(field.label, e.target.value)}
                           className={cn(
-                            "w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-800 border rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all",
+                            "w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-800 border rounded-xl p-3 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none min-h-[80px]",
                             hasError ? "border-red-500 bg-red-50/10 focus:ring-red-500/20" : "border-slate-200 focus:border-indigo-500"
                           )}
                           style={fieldBgStyle}
                           required={field.required}
-                        >
-                          <option value="">בחר...</option>
-                          {field.options.split("\n").map(opt => {
-                            const clean = opt.trim();
-                            if (!clean) return null;
-                            return <option key={clean} value={clean}>{clean}</option>;
-                          })}
-                        </select>
-                      )
-                    ) : (
-                      <input
-                        type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "number" ? "number" : "text"}
-                        value={formData[field.label] || ""}
-                        onChange={(e) => handleInputChange(field.label, e.target.value)}
-                        className={cn(
-                          "w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-800 border rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all",
-                          hasError ? "border-red-500 bg-red-50/10" : "border-slate-200 focus:border-indigo-500"
-                        )}
-                        style={fieldBgStyle}
-                        required={field.required}
-                        placeholder={field.type === "tel" ? "למשל: 0501234567" : ""}
-                      />
-                    )}
+                        />
+                      ) : field.type === "select" ? (
+                        (field.options || "").split("\n").filter(o => o.trim()).length <= 4 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                            {(field.options || "").split("\n").filter(o => o.trim()).map(opt => {
+                              const clean = opt.trim();
+                              const isSelected = formData[field.label] === clean;
+                              return (
+                                <label
+                                  key={clean}
+                                  className={cn(
+                                    "relative flex items-center p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                                    isSelected 
+                                      ? "border-orange-400 bg-orange-50/50" 
+                                      : "border-slate-200 bg-white hover:border-orange-200"
+                                  )}
+                                  style={fieldBgStyle}
+                                >
+                                  <input
+                                    type="radio"
+                                    name={field.label}
+                                    value={clean}
+                                    checked={isSelected}
+                                    onChange={(e) => handleInputChange(field.label, e.target.value)}
+                                    className="w-5 h-5 text-orange-500 border-slate-300 ml-3"
+                                    required={field.required && !formData[field.label]}
+                                  />
+                                  <span className="font-bold text-slate-700 leading-tight">{clean}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <select
+                            value={formData[field.label] || ""}
+                            onChange={(e) => handleInputChange(field.label, e.target.value)}
+                            className={cn(
+                              "w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-800 border rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all",
+                              hasError ? "border-red-500 bg-red-50/10 focus:ring-red-500/20" : "border-slate-200 focus:border-indigo-500"
+                            )}
+                            style={fieldBgStyle}
+                            required={field.required}
+                          >
+                            <option value="">בחר...</option>
+                            {(field.options || "").split("\n").map(opt => {
+                              const clean = opt.trim();
+                              if (!clean) return null;
+                              return <option key={clean} value={clean}>{clean}</option>;
+                            })}
+                          </select>
+                        )
+                      ) : (
+                        <input
+                          type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "number" ? "number" : "text"}
+                          value={formData[field.label] || ""}
+                          onChange={(e) => handleInputChange(field.label, e.target.value)}
+                          className={cn(
+                            "w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-800 border rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all",
+                            hasError ? "border-red-500 bg-red-50/10" : "border-slate-200 focus:border-indigo-500"
+                          )}
+                          style={fieldBgStyle}
+                          required={field.required}
+                          placeholder={field.type === "tel" ? "למשל: 0501234567" : ""}
+                        />
+                      )}
 
-                    {hasError && (
-                      <p className="text-[10px] text-red-500 font-bold mt-0.5 animate-in slide-in-from-top-1">
-                        {hasError}
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-            );
-          })}
+                      {hasError && (
+                        <p className="text-[10px] text-red-500 font-bold mt-0.5 animate-in slide-in-from-top-1">
+                          {hasError}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
-          {config.form_type === "payment" && config.payment_frequency === "user-choice" && currentStep === totalSteps && (
+          {safeConfig.form_type === "payment" && safeConfig.payment_frequency === "user-choice" && currentStep === totalSteps && (
             <div className="flex items-center gap-3 p-3 bg-blue-50/50 border border-blue-100 rounded-xl mb-4">
               <button
                 type="button"
@@ -593,12 +673,12 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
               >
                 {submitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
-                ) : config.form_type === "payment" ? (
+                ) : safeConfig.form_type === "payment" ? (
                   <CreditCard className="w-4 h-4" />
                 ) : (
                   <Send className="w-4 h-4" />
                 )}
-                {submitting ? "מעבד..." : config.submit_button_text || "שלח פנייה"}
+                {submitting ? "מעבד..." : safeConfig.submit_button_text || "שלח פנייה"}
               </Button>
             )}
           </div>

@@ -28,7 +28,8 @@ import {
   MessageCircle,
   Mail,
   Clock,
-  MoreVertical
+  MoreVertical,
+  TrendingUp
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { MessageModal } from "./MessageModal";
@@ -470,6 +471,16 @@ export default function CRMDashboardPage() {
             {stats.trashed}
           </span>
         </button>
+
+        <div className="flex-grow"></div>
+
+        <a
+          href="/dashboard/crm/analytics"
+          className="flex items-center gap-2 py-3 px-4 font-black text-sm border-b-2 border-transparent text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/50 transition-all rounded-t-xl"
+        >
+          <TrendingUp className="w-4 h-4" />
+          לאנליטיקה ולדוחות
+        </a>
       </div>
 
       {/* Filters Area */}
@@ -657,6 +668,12 @@ export default function CRMDashboardPage() {
                         c.gender === "זכר" ? "bg-blue-50/50 border-blue-100 text-blue-600" : "bg-pink-50/50 border-pink-100 text-pink-600"
                       }`}>
                         {c.gender}
+                      </span>
+                    )}
+                    
+                    {c.children && c.children.length > 0 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                        ילדים: {c.children.map(child => child.first_name).filter(Boolean).join(", ")}
                       </span>
                     )}
 

@@ -59,6 +59,7 @@ const themePresets: Record<string, { bg: string; text: string; accent: string; i
 import { AITextHelper } from "@/components/ui/AITextHelper";
 
 interface LandingSectionProps {
+  id?: string;
   title: string;
   subtitle: string;
   description: string;
@@ -70,9 +71,12 @@ interface LandingSectionProps {
   formMode?: "visible" | "modal";
   buttonText?: string;
   onUpdate?: (field: string, value: any) => void;
+  backgroundColor?: string;
+  backgroundOpacity?: number;
 }
 
 export function LandingSection({
+  id,
   title,
   subtitle,
   description,
@@ -83,6 +87,8 @@ export function LandingSection({
   layout = "split-left",
   formMode = "visible",
   buttonText = "להקדשה ותרומה",
+  backgroundColor,
+  backgroundOpacity = 85,
   onUpdate
 }: LandingSectionProps) {
   const [isFormBuilderOpen, setIsFormBuilderOpen] = useState(false);
@@ -116,9 +122,10 @@ export function LandingSection({
   };
 
   const activeTheme = themePresets[theme || "navy"] || themePresets.navy;
+  const customBgStyle = backgroundColor ? { backgroundColor } : {};
 
   return (
-    <div className={`relative pt-24 pb-36 overflow-hidden ${activeTheme.bg} ${activeTheme.text} min-h-[65vh] flex items-center`}>
+    <div id={id} className={`relative pt-24 pb-36 overflow-hidden ${!backgroundColor ? activeTheme.bg : ''} ${activeTheme.text} min-h-[65vh] flex items-center`} style={customBgStyle}>
       <div className="absolute inset-0 z-0">
         {imageSrc && imageSrc !== "/placeholder.png" && (
           <>
@@ -127,7 +134,14 @@ export function LandingSection({
               alt={title || "רקע"} 
               className="absolute inset-0 w-full h-full object-cover animate-fade-in"
             />
-            <div className={`absolute inset-0 ${activeTheme.bg}/85 mix-blend-multiply`} />
+            {backgroundColor ? (
+              <div 
+                className="absolute inset-0 mix-blend-multiply" 
+                style={{ backgroundColor, opacity: backgroundOpacity / 100 }} 
+              />
+            ) : (
+              <div className={`absolute inset-0 ${activeTheme.bg}/85 mix-blend-multiply`} />
+            )}
           </>
         )}
         <div className="absolute inset-0 bg-pattern opacity-10 bg-repeat bg-center" />

@@ -31,6 +31,9 @@ export interface HomePageConfig {
     buttonsVisible?: boolean;
     primaryButton?: ButtonConfig;
     secondaryButton?: ButtonConfig;
+    anchorId?: string;
+    backgroundColor?: string;
+    hoverColor?: string;
   };
   mainContent: {
     visible: boolean;
@@ -42,13 +45,21 @@ export interface HomePageConfig {
     buttonsVisible?: boolean;
     primaryButton?: ButtonConfig;
     secondaryButton?: ButtonConfig;
+    anchorId?: string;
+    backgroundColor?: string;
+    hoverColor?: string;
   };
   services: {
     title?: string;
     description?: string;
-    layout: "grid" | "carousel" | "list" | "fz" | "bento" | "modular" | "progressive" | "spatial" | "thumb";
+    layout: "grid" | "carousel" | "image-card" | "hover-card";
+    effect?: "none" | "zoom" | "lift" | "glow";
+    columns?: number;
     visible: boolean;
     items?: ServiceItem[];
+    anchorId?: string;
+    backgroundColor?: string;
+    hoverColor?: string;
   };
   community: {
     visible: boolean;
@@ -64,11 +75,17 @@ export interface HomePageConfig {
     layout: "split-left" | "split-right" | "centered";
     badgeVisible: boolean;
     buttonVisible: boolean;
+    anchorId?: string;
+    backgroundColor?: string;
+    hoverColor?: string;
   };
   livePosts: {
     visible: boolean;
     layout?: "grid" | "carousel" | "list" | "bento";
     customPages?: string[];
+    anchorId?: string;
+    backgroundColor?: string;
+    hoverColor?: string;
   };
   contact: {
     visible: boolean;
@@ -81,6 +98,9 @@ export interface HomePageConfig {
     hoursLabel?: string;
     hoursVal?: string;
     form?: FormConfig;
+    anchorId?: string;
+    backgroundColor?: string;
+    hoverColor?: string;
   };
   landingSection?: {
     visible: boolean;
@@ -92,18 +112,36 @@ export interface HomePageConfig {
     layout?: "split-left" | "split-right";
     formMode?: "visible" | "modal";
     buttonText?: string;
+    anchorId?: string;
+    backgroundColor?: string;
+    hoverColor?: string;
   };
   richContent?: {
     visible: boolean;
     heading: string;
     body: string;
     layout: "center" | "two-column" | "grid";
+    anchorId?: string;
+    backgroundColor?: string;
+    hoverColor?: string;
+  };
+  timer?: {
+    visible: boolean;
+    title: string;
+    subtitle: string;
+    targetDate: string;
+    layout: "classic" | "modern" | "compact";
+    anchorId?: string;
+    backgroundColor?: string;
+    hoverColor?: string;
   };
   mobileHiddenSections?: string[];
   sectionOrder: string[];
   seo?: {
     title: string;
     description: string;
+    keywords?: string;
+    image?: string;
   };
 }
 
@@ -345,8 +383,48 @@ const DEFAULT_HOME_CONFIG: HomePageConfig = {
     body: "אירוע בבית חב\"ד הוא הרבה יותר מעוד השכרת אולם; זוהי חוויה עוטפת של קדושה, חום ואווירה יהודית אותנטית. האולם שלנו תוכנן במיוחד כדי לארח התכנסויות משפחתיות וקהילתיות של עד 60 איש, מה שהופך אותו למקום האידיאלי ביותר עבור חגיגות בר מצווה מרגשות, אזכרות מכבדות ושבתות חתן מגבשות. מעבר לחלל הפנימי, תהנו מחצר נעימה המרחיבה את מרחב האירוע, ומציוד מלא לשבת הכולל פלטות שבת ומיחמים לנוחיותכם. צוות בית חב\"ד ישמח לעמוד לשירותכם, לסייע בכל פרט טכני ורוחני, ולהבטיח שהאירוע שלכם יהיה מרגש, מכבד ומוצלח. דלתנו פתוחה לכולם באהבה.",
     layout: "center",
   },
+  timer: {
+    visible: false,
+    title: "הזמן אוזל!",
+    subtitle: "מהרו להירשם לפני סיום ההרשמה",
+    targetDate: new Date(Date.now() + 86400000).toISOString(),
+    layout: "classic",
+  },
   mobileHiddenSections: [],
-  sectionOrder: ["hero", "mainContent", "services", "community", "livePosts", "richContent", "contact", "landingSection"],
+  sectionOrder: ["hero", "mainContent", "services", "community", "livePosts", "timer", "richContent", "contact", "landingSection"],
+};
+
+const DEFAULT_SERVICES_LANDING_CONFIG: HomePageConfig = {
+  ...DEFAULT_HOME_CONFIG,
+  hero: {
+    ...DEFAULT_HOME_CONFIG.hero,
+    title: "הנגשת המסורת במאור פנים",
+    subtitle: "שירותי דת וקהילה",
+    description: "בית חב\"ד אזור שמח להעניק לכם מגוון רחב של שירותי דת, תמיכה קהילתית, שיעורים ומפגשים. כל השירותים מוגשים באהבה, ללא שיפוטיות ובגובה העיניים.",
+  },
+  services: {
+    title: "השירותים שלנו",
+    description: "",
+    layout: "grid",
+    columns: 3,
+    visible: true,
+    items: []
+  },
+  mainContent: { ...DEFAULT_HOME_CONFIG.mainContent, visible: false },
+  community: { ...DEFAULT_HOME_CONFIG.community, visible: false },
+  livePosts: { ...DEFAULT_HOME_CONFIG.livePosts, visible: false },
+  timer: { ...DEFAULT_HOME_CONFIG.timer!, visible: false },
+  richContent: { ...DEFAULT_HOME_CONFIG.richContent!, visible: false },
+  contact: { ...DEFAULT_HOME_CONFIG.contact, visible: false },
+  landingSection: { 
+    ...DEFAULT_HOME_CONFIG.landingSection!, 
+    visible: true,
+    title: "לא מצאתם את השירות שחיפשתם?",
+    subtitle: "",
+    description: "אנחנו כאן לכל עניין - גדול כקטן. נשמח לסייע לכם בכל בקשה, שאלה או צורך אישי או הלכתי שעולה. פנו אלינו ישירות ונשמח לעמוד לשירותכם.",
+    buttonText: "יצירת קשר מהירה"
+  },
+  sectionOrder: ["hero", "services", "mainContent", "community", "livePosts", "timer", "richContent", "contact", "landingSection"],
 };
 
 function mergeWithDefaultConfig(data: any): HomePageConfig {
@@ -369,6 +447,19 @@ function mergeWithDefaultConfig(data: any): HomePageConfig {
     }
   }
 
+  if (!sectionOrder.includes("timer")) {
+    const richContentIdx = sectionOrder.indexOf("richContent");
+    if (richContentIdx !== -1) {
+      sectionOrder = [
+        ...sectionOrder.slice(0, richContentIdx),
+        "timer",
+        ...sectionOrder.slice(richContentIdx)
+      ];
+    } else {
+      sectionOrder = [...sectionOrder, "timer"];
+    }
+  }
+
   return {
     hero: { ...DEFAULT_HOME_CONFIG.hero, ...data.hero },
     mainContent: { ...DEFAULT_HOME_CONFIG.mainContent, ...data.mainContent },
@@ -378,6 +469,7 @@ function mergeWithDefaultConfig(data: any): HomePageConfig {
     contact: { ...DEFAULT_HOME_CONFIG.contact, ...data.contact },
     landingSection: { ...DEFAULT_HOME_CONFIG.landingSection, ...data.landingSection },
     richContent: { ...DEFAULT_HOME_CONFIG.richContent, ...data.richContent },
+    timer: { ...DEFAULT_HOME_CONFIG.timer, ...data.timer },
     mobileHiddenSections: data.mobileHiddenSections || DEFAULT_HOME_CONFIG.mobileHiddenSections || [],
     sectionOrder,
     seo: data.seo,
@@ -385,18 +477,31 @@ function mergeWithDefaultConfig(data: any): HomePageConfig {
 }
 
 export async function getHomePageConfig(): Promise<HomePageConfig> {
+  return getPageConfigWithDefault("pages", "home", DEFAULT_HOME_CONFIG);
+}
+
+export async function getServicesLandingConfig(): Promise<HomePageConfig> {
+  return getPageConfigWithDefault("pages", "services-landing", DEFAULT_SERVICES_LANDING_CONFIG);
+}
+
+async function getPageConfigWithDefault(collectionName: string, docId: string, defaultConfig: HomePageConfig): Promise<HomePageConfig> {
   try {
-    const docRef = adminDb.collection("pages").doc("home");
+    const docRef = adminDb.collection(collectionName).doc(docId);
     const docSnap = await docRef.get();
     
     if (docSnap.exists) {
-      return mergeWithDefaultConfig(docSnap.data());
+      const data = docSnap.data();
+      const mergedConfig = mergeWithDefaultConfig(data);
+      // If it's services-landing, ensure the sectionOrder remains customized if not overridden by the user
+      if (docId === "services-landing" && !data?.sectionOrder) {
+        mergedConfig.sectionOrder = defaultConfig.sectionOrder;
+      }
+      return mergedConfig;
     }
-    return DEFAULT_HOME_CONFIG;
-    return DEFAULT_HOME_CONFIG;
+    return defaultConfig;
   } catch (error) {
-    console.warn(`Error fetching home page config:`, (error as Error).message);
-    return DEFAULT_HOME_CONFIG;
+    console.warn(`Error fetching config for ${docId}:`, (error as Error).message);
+    return defaultConfig;
   }
 }
 
@@ -421,9 +526,9 @@ export async function savePageConfig(collectionName: string, docId: string, cont
     else if (collectionName === "posts") revalidatePath(`/post/${docId}`);
     
     return { success: true };
-  } catch (error) {
-    console.warn(`Error saving page config for ${collectionName}/${docId}:`, (error as Error).message);
-    throw new Error("Failed to save to Firebase");
+  } catch (error: any) {
+    console.warn(`Error saving page config for ${collectionName}/${docId}:`, error.message);
+    throw new Error(`Firebase save error: ${error.message}`);
   }
 }
 
@@ -464,7 +569,7 @@ export async function getAllSitePages() {
       });
     });
 
-    landingSnap.docs.forEach(doc => {
+    landingSnap.docs.forEach((doc: any) => {
       const data = doc.data();
       allPages.push({
         id: doc.id,
@@ -476,7 +581,7 @@ export async function getAllSitePages() {
       });
     });
 
-    postsSnap.docs.forEach(doc => {
+    postsSnap.docs.forEach((doc: any) => {
       const data = doc.data();
       allPages.push({
         id: doc.id,
@@ -488,7 +593,7 @@ export async function getAllSitePages() {
       });
     });
 
-    return allPages;
+    return JSON.parse(JSON.stringify(allPages));
   } catch (error) {
     console.error("Error fetching all site pages:", error);
     return [];

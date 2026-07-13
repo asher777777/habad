@@ -161,8 +161,13 @@ export function ServicePageClient({ initialData, slug }: { initialData: any, slu
 
   const handleSave = async () => {
     try {
-      await saveServicePage(slug, content);
-      setIsEditing(false);
+      const cleanContent = JSON.parse(JSON.stringify(content));
+      const res = await saveServicePage(slug, cleanContent);
+      if (res.success) {
+        setIsEditing(false);
+      } else {
+        alert("שגיאה בשמירה: " + res.error);
+      }
     } catch (e) {
       console.error("Failed to save to Firestore", e);
       alert("שגיאה בשמירה ל-Firebase.");

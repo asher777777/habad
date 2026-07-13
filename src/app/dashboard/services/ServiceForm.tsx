@@ -41,6 +41,7 @@ export function ServiceForm() {
   const [prompt, setPrompt] = useState("");
   const [tone, setTone] = useState("חם, מקרב ומזמין");
   const [audience, setAudience] = useState("כל הקהילה (חילונים ומסורתיים)");
+  const [selectedSections, setSelectedSections] = useState<string[]>(['hero', 'services', 'contact']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -56,12 +57,13 @@ export function ServiceForm() {
     setError("");
 
     try {
-      const result = await generatePageWithAI(prompt, slug, type, tone, audience);
+      const result = await generatePageWithAI(prompt, slug, type, tone, audience, selectedSections);
       if (result.success) {
         setIsOpen(false);
         setWizardStep(1);
         setSlug("");
         setPrompt("");
+        setSelectedSections(['hero', 'services', 'contact']);
         
         // Dynamic routing based on generated page type
         if (type === 'post') {
@@ -81,11 +83,101 @@ export function ServiceForm() {
     }
   };
 
+  const [generatingShabbat, setGeneratingShabbat] = useState(false);
+
+  const handleGenerateShabbat = async () => {
+    setGeneratingShabbat(true);
+    try {
+      const { fetchShabbatTimesFromAPI, saveShabbatTimes, getShabbatTimes } = await import("@/features/shabbat/actions");
+      const { rephraseTextWithAI } = await import("@/features/ai/actions");
+      
+      const currentDataRes = await getShabbatTimes();
+      let currentData = currentDataRes || {
+        candleLighting: "19:10",
+        havdalah: "20:31",
+        parashaHebrew: "פרשת השבוע",
+        parashaEnglish: "Parashat Hashavua",
+        dvarTorah: "בס\"ד\n\nשבת שלום!",
+        prayerTimes: {
+          minchaErevShabbat: "19:10",
+          shacharitShabbat: "10:00",
+          minchaShabbat: "18:30",
+          arvitMotzeiShabbat: "20:31"
+        },
+        weekdayPrayerTimes: {
+          shacharit: "07:45",
+          mincha: "בזמן הדלקת נרות (של שבת שעברה)",
+          arvit: "צאת הכוכבים"
+        },
+        updatedAt: ""
+      };
+
+      const apiRes = await fetchShabbatTimesFromAPI();
+      if (apiRes.success && apiRes.data) {
+        currentData = {
+          ...currentData,
+          candleLighting: apiRes.data.candleLighting || currentData.candleLighting,
+          havdalah: apiRes.data.havdalah || currentData.havdalah,
+          parashaHebrew: apiRes.data.parashaHebrew || currentData.parashaHebrew,
+          parashaEnglish: apiRes.data.parashaEnglish || currentData.parashaEnglish
+        };
+        
+        if (currentData.parashaHebrew) {
+          const promptText = `כתוב דבר תורה קצר, מחמם לב ומרגש ל${currentData.parashaHebrew}. הדגש מסר של אהבת ישראל, שמחה והתחברות. בסוף הוסף איחולי שבת שלום לקהילת חב"ד אזור.`;
+          const aiRes = await rephraseTextWithAI(promptText, "storytelling");
+          if (aiRes.success && aiRes.text) {
+             currentData.dvarTorah = aiRes.text;
+          }
+        }
+        
+        const saveRes = await saveShabbatTimes(currentData);
+        if (saveRes.success) {
+           alert("זמני התפילות ודבר התורה לשבוע נוצרו ועודכנו בהצלחה!");
+           router.refresh();
+        } else {
+           alert("שגיאה בשמירת העמוד: " + saveRes.error);
+        }
+      } else {
+        alert("שגיאה בשליפת זמנים: " + apiRes.error);
+      }
+    } catch (e: any) {
+      alert("שגיאה: " + e.message);
+    } finally {
+      setGeneratingShabbat(false);
+    }
+  };
+
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
   if (!isOpen) {
     return (
-      <Button onClick={() => setIsOpen(true)} className="gap-2 bg-gradient-to-r from-primary to-secondary text-white font-bold px-6 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
-        <Plus className="w-5 h-5" /> צור עמוד חדש ב-AI
-      </Button>
+      <div className="flex flex-wrap gap-4">
+        <Button onClick={() => setIsOpen(true)} className="gap-2 bg-gradient-to-r from-primary to-secondary text-white font-bold px-6 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
+          <Plus className="w-5 h-5" /> צור עמוד חדש ב-AI
+        </Button>
+        <Button onClick={handleGenerateShabbat} disabled={generatingShabbat} className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold px-6 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
+          {generatingShabbat ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />} יצירת זמני תפילות לשבוע
+        </Button>
+        <Button onClick={() => setIsPreviewOpen(true)} className="gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold px-6 py-3 rounded-full shadow-sm transition-all duration-300">
+          <Layout className="w-5 h-5" /> תצוגה מקדימה לשבת
+        </Button>
+
+        {isPreviewOpen && (
+          <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 md:p-12 animate-in fade-in duration-300">
+            <div className="bg-slate-900 w-full max-w-6xl h-full max-h-[90vh] rounded-[2.5rem] border border-slate-700 shadow-2xl flex flex-col overflow-hidden relative">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
+                <h3 className="text-xl font-black text-amber-400">תצוגה מקדימה - עמוד שבת</h3>
+                <button onClick={() => setIsPreviewOpen(false)} className="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 w-full bg-slate-950 relative">
+                <iframe src="/shabbat" className="absolute inset-0 w-full h-full border-none" title="Shabbat Preview" />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -207,11 +299,51 @@ export function ServiceForm() {
           </div>
         )}
 
-        {/* Step 3: Prompt description */}
+        {/* Step 3: Sections Selection */}
         {wizardStep === 3 && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-slate-700">5. על מה העמוד? (הנחיה ל-AI)</label>
+              <label className="block text-sm font-bold text-slate-700">5. בחירת אזורים להצגה</label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { id: 'hero', label: 'פתיח (Hero)' },
+                  { id: 'services', label: 'שירותים / פריטים' },
+                  { id: 'contact', label: 'טופס יצירת קשר' },
+                  { id: 'richContent', label: 'תוכן טקסטואלי' },
+                  { id: 'mainContent', label: 'תוכן מרכזי (בנטו)' },
+                  { id: 'community', label: 'המלצות וקהילה' },
+                  { id: 'landingSection', label: 'טופס הרשמה' },
+                  { id: 'livePosts', label: 'עדכונים מהשטח' },
+                ].map((sec) => {
+                  const isChecked = selectedSections.includes(sec.id);
+                  return (
+                    <label key={sec.id} className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${isChecked ? 'bg-indigo-50/50 border-indigo-500' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
+                      <input 
+                        type="checkbox" 
+                        className="rounded text-indigo-600 w-4 h-4 focus:ring-indigo-500"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedSections([...selectedSections, sec.id]);
+                          } else {
+                            setSelectedSections(selectedSections.filter(id => id !== sec.id));
+                          }
+                        }}
+                      />
+                      <span className={`text-xs font-medium ${isChecked ? 'text-indigo-700' : 'text-slate-600'}`}>{sec.label}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Prompt description */}
+        {wizardStep === 4 && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-slate-700">6. על מה העמוד? (הנחיה ל-AI)</label>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -225,7 +357,7 @@ export function ServiceForm() {
                 className="w-full p-4 border rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm min-h-[120px] transition-all resize-none"
                 required
               />
-              <p className="text-[11px] text-slate-500">ה-AI ייצר עבורך באופן אוטומטי מבנה מלא עם טפסים מתאימים ומיקום נכון לכל אזור.</p>
+              <p className="text-[11px] text-slate-500">ה-AI ייצר עבורך באופן אוטומטי מבנה מלא עם טפסים מתאימים ומיקום נכון לכל אזור לפי בחירתך.</p>
             </div>
           </div>
         )}
@@ -258,7 +390,7 @@ export function ServiceForm() {
             >
               ביטול
             </Button>
-            {wizardStep < 3 ? (
+            {wizardStep < 4 ? (
               <Button 
                 type="button" 
                 onClick={() => {

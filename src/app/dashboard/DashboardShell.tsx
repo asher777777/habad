@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard, Server, Sparkles, CreditCard, Users, Settings, Home, MessageSquare, FileText } from "lucide-react";
+import { LayoutDashboard, Server, Sparkles, CreditCard, Users, Settings, Home, MessageSquare, FileText, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 const dashboardLinks = [
   { name: "ראשי", href: "/dashboard", icon: LayoutDashboard },
   { name: "ניהול CRM", href: "/dashboard/crm", icon: Users },
+  { name: "אנליטיקה", href: "/dashboard/crm/analytics", icon: TrendingUp },
   { name: "וואטסאפ", href: "/dashboard/whatsapp", icon: MessageSquare },
   { name: "קבלות ידניות", href: "/dashboard/receipts", icon: FileText },
   { name: "יצירת תוכן", href: "/dashboard/services", icon: Sparkles },
@@ -37,7 +38,7 @@ export function DashboardShell({
     <div className="flex flex-col gap-6 p-4 md:p-8 max-w-7xl mx-auto w-full" dir="rtl">
       
       {/* Header & Status Indicator Panel */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6 print:hidden">
         <div className="space-y-1 text-right">
           <h1 className="text-2xl md:text-3xl font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             מרכז בקרה ותפעול
@@ -92,7 +93,7 @@ export function DashboardShell({
       </header>
 
       {/* Dashboard Navigation Bar */}
-      <div className="w-full bg-slate-100/60 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/50 flex flex-wrap gap-1 items-center">
+      <div className="w-full bg-slate-100/60 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/50 flex flex-wrap gap-1 items-center print:hidden">
         {dashboardLinks.map((link) => {
           const isActive = pathname === link.href;
           return (

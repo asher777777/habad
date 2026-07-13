@@ -4,10 +4,10 @@ import React, { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Contact, ContactEvent } from "@/features/crm/types";
-import { createContact, updateContact } from "@/features/crm/actions";
+import { Contact, ContactEvent, ChildData } from "@/features/crm/types";
+import { createContact, updateContact, getCustomFields } from "@/features/crm/actions";
 import { syncContactMessages } from "@/features/whatsapp/actions";
-import { Calendar, Tag, Building, Clock, CreditCard, User, Users, Plus, Trash2, MessageCircle, Phone, Mail, Edit, RefreshCw } from "lucide-react";
+import { Calendar, Tag, Building, Clock, CreditCard, User, Users, Plus, Trash2, MessageCircle, Phone, Mail, Edit, RefreshCw, ChevronDown } from "lucide-react";
 
 const getInitials = (name: string, fm?: string) => {
   const first = name ? name.trim().charAt(0) : "";
@@ -42,7 +42,7 @@ interface ContactModalProps {
   onSuccess: () => void;
 }
 
-type TabType = "details" | "camp" | "tags" | "company" | "events" | "timeline" | "payments";
+type TabType = "details" | "camp" | "tags" | "company" | "events" | "timeline" | "payments" | "";
 
 export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactModalProps) {
   const isEdit = !!contact;
@@ -93,14 +93,12 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
 
   const [workPhone, setWorkPhone] = useState("");
   const [website, setWebsite] = useState("");
+  const [totalSpent, setTotalSpent] = useState<number>(0);
+  const [orderCount, setOrderCount] = useState<number>(0);
 
   // Camp & Family States
-  const [childFirstName, setChildFirstName] = useState("");
-  const [childLastName, setChildLastName] = useState("");
-  const [childGrade, setChildGrade] = useState("");
-  const [childIdNumber, setChildIdNumber] = useState("");
-  const [allergiesHas, setAllergiesHas] = useState("");
-  const [allergiesDetails, setAllergiesDetails] = useState("");
+  const [childrenList, setChildrenList] = useState<ChildData[]>([]);
+  const [openChildId, setOpenChildId] = useState<string | null>(null);
   const [fatherName, setFatherName] = useState("");
   const [motherName, setMotherName] = useState("");
   const [fatherPhone, setFatherPhone] = useState("");
@@ -108,6 +106,12 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
 
   // Repeater states
   const [events, setEvents] = useState<ContactEvent[]>([]);
+  const [customFieldsConfig, setCustomFieldsConfig] = useState<any[]>([]);
+  const [customFieldsValues, setCustomFieldsValues] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    getCustomFields().then(setCustomFieldsConfig);
+  }, []);
 
   // Initialize fields on open/contact change
   useEffect(() => {
@@ -134,19 +138,34 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
         setLastFormName(contact.last_form_name || "");
         setWorkPhone(contact.work_phone || "");
         setWebsite(contact.website || "");
+        setTotalSpent(contact.total_spent || 0);
+        setOrderCount(contact.order_count || 0);
         
-        setChildFirstName(contact.child_first_name || "");
-        setChildLastName(contact.child_last_name || "");
-        setChildGrade(contact.child_grade || "");
-        setChildIdNumber(contact.child_id_number || "");
-        setAllergiesHas(contact.allergies_has || "");
-        setAllergiesDetails(contact.allergies_details || "");
+        let initialChildren: ChildData[] = contact.children || [];
+        if (initialChildren.length === 0 && contact.child_first_name) {
+          initialChildren.push({
+            id: Date.now().toString(),
+            first_name: contact.child_first_name,
+            last_name: contact.child_last_name || "",
+            grade: contact.child_grade || "",
+            id_number: contact.child_id_number || "",
+            allergies_has: contact.allergies_has || "",
+            allergies_details: contact.allergies_details || ""
+          });
+        }
+        setChildrenList(initialChildren);
         setFatherName(contact.father_name || "");
         setMotherName(contact.mother_name || "");
         setFatherPhone(contact.father_phone || "");
         setMotherPhone(contact.mother_phone || "");
 
         setEvents(contact.events || []);
+
+        const dynamicValues: Record<string, any> = {};
+        Object.keys(contact).forEach(k => {
+          if (k.startsWith("custom_")) dynamicValues[k] = contact[k];
+        });
+        setCustomFieldsValues(dynamicValues);
       } else {
         setMode("edit");
         // Reset fields for new contact
@@ -168,19 +187,17 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
         setLastFormName("");
         setWorkPhone("");
         setWebsite("");
+        setTotalSpent(0);
+        setOrderCount(0);
 
-        setChildFirstName("");
-        setChildLastName("");
-        setChildGrade("");
-        setChildIdNumber("");
-        setAllergiesHas("");
-        setAllergiesDetails("");
+        setChildrenList([]);
         setFatherName("");
         setMotherName("");
         setFatherPhone("");
         setMotherPhone("");
 
         setEvents([]);
+        setCustomFieldsValues({});
       }
     }
   }, [isOpen, contact]);
@@ -214,17 +231,15 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
       last_form_name: lastFormName,
       work_phone: workPhone,
       website: website,
-      child_first_name: childFirstName,
-      child_last_name: childLastName,
-      child_grade: childGrade,
-      child_id_number: childIdNumber,
-      allergies_has: allergiesHas,
-      allergies_details: allergiesDetails,
+      children: childrenList,
       father_name: fatherName,
       mother_name: motherName,
       father_phone: fatherPhone,
       mother_phone: motherPhone,
       events,
+      total_spent: totalSpent,
+      order_count: orderCount,
+      ...customFieldsValues,
     };
 
     try {
@@ -260,6 +275,39 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
     const updatedEvents = [...events];
     updatedEvents[index] = { ...updatedEvents[index], [field]: value };
     setEvents(updatedEvents);
+  };
+
+  const renderCustomFields = (category: string) => {
+    const fields = customFieldsConfig.filter(f => f.category === category);
+    if (fields.length === 0) return null;
+
+    return (
+      <div className="mt-6 pt-6 border-t border-slate-100 col-span-full">
+        <h4 className="text-sm font-black text-slate-400 mb-3 uppercase tracking-wider">שדות מותאמים אישית</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {fields.map(field => (
+            <div key={field.id} className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-600">{field.label}</label>
+              {field.type === "textarea" ? (
+                <textarea
+                  value={customFieldsValues[field.id] || ""}
+                  onChange={(e) => setCustomFieldsValues(prev => ({...prev, [field.id]: e.target.value}))}
+                  rows={3}
+                  className="flex w-full rounded-2xl border border-input bg-white px-3 py-2 text-sm focus-visible:outline-none"
+                />
+              ) : (
+                <Input
+                  type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
+                  value={customFieldsValues[field.id] || ""}
+                  onChange={(e) => setCustomFieldsValues(prev => ({...prev, [field.id]: e.target.value}))}
+                  className="rounded-xl bg-white"
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   if (mode === "view" && contact) {
@@ -518,117 +566,43 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <Modal.Content className="max-w-3xl rounded-[2rem] p-8">
-        <div dir="rtl" className="w-full">
-          <Modal.Close className="left-4 right-auto" />
-          <Modal.Header 
-            title={isEdit ? `עריכת איש קשר: ${contaName} ${fM}` : "הוספת איש קשר חדש"} 
-          description={isEdit ? "עדכן את פרטי איש הקשר ונהל היסטוריית אינטראקציות" : "מלא את שדות החובה להוספת איש קשר חדש למערכת"}
-        />
+      <Modal.Content className="max-w-3xl rounded-[2rem] p-0 overflow-hidden flex flex-col max-h-[90vh]">
+        <div dir="rtl" className="w-full h-full flex flex-col min-h-0">
+          <div className="p-8 pb-4 shrink-0 border-b border-slate-50 relative">
+            <Modal.Close className="left-8 top-8 right-auto" />
+            <Modal.Header 
+              title={isEdit ? `עריכת איש קשר: ${contaName} ${fM}` : "הוספת איש קשר חדש"} 
+              description={isEdit ? "עדכן את פרטי איש הקשר ונהל היסטוריית אינטראקציות" : "מלא את שדות החובה להוספת איש קשר חדש למערכת"}
+            />
+          </div>
 
         {error && (
-          <div className="p-4 mb-4 bg-red-50 text-red-600 rounded-2xl text-sm font-semibold border border-red-100 animate-in fade-in">
+          <div className="mx-8 mt-4 p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-semibold border border-red-100 animate-in fade-in shrink-0">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Tab Navigation */}
-          <div className="flex border-b overflow-x-auto py-1 gap-2 scrollbar-none">
-            <button
-              type="button"
-              onClick={() => setActiveTab("details")}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-t-xl transition-colors shrink-0 ${
-                activeTab === "details"
-                  ? "border-b-2 border-indigo-600 text-indigo-600"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <User className="w-4 h-4" />
-              פרטים כלליים
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("camp")}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-t-xl transition-colors shrink-0 ${
-                activeTab === "camp"
-                  ? "border-b-2 border-indigo-600 text-indigo-600"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              משפחה וקייטנה
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("tags")}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-t-xl transition-colors shrink-0 ${
-                activeTab === "tags"
-                  ? "border-b-2 border-indigo-600 text-indigo-600"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <Tag className="w-4 h-4" />
-              תיוגים והערות
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("company")}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-t-xl transition-colors shrink-0 ${
-                activeTab === "company"
-                  ? "border-b-2 border-indigo-600 text-indigo-600"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <Building className="w-4 h-4" />
-              חברה ומקור
-            </button>
-            {isEdit && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("events")}
-                  className={`flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-t-xl transition-colors shrink-0 ${
-                    activeTab === "events"
-                      ? "border-b-2 border-indigo-600 text-indigo-600"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  <Calendar className="w-4 h-4" />
-                  אירועים ומפגשים
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("timeline")}
-                  className={`flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-t-xl transition-colors shrink-0 ${
-                    activeTab === "timeline"
-                      ? "border-b-2 border-indigo-600 text-indigo-600"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  <Clock className="w-4 h-4" />
-                  ציר זמן
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("payments")}
-                  className={`flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-t-xl transition-colors shrink-0 ${
-                    activeTab === "payments"
-                      ? "border-b-2 border-indigo-600 text-indigo-600"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  <CreditCard className="w-4 h-4" />
-                  תשלומים
-                </button>
-              </>
-            )}
-          </div>
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto p-8 pt-4 space-y-6">
+          {/* Accordion Sections */}
 
           {/* Tab Content: Details */}
-          {activeTab === "details" && (
-            <div className="space-y-6">
-              <div>
+          <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-sm shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab(activeTab === "details" ? "" : "details")}
+              className="flex items-center justify-between w-full p-4 font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <User className="w-5 h-5 text-indigo-500" />
+                פרטים כלליים
+              </div>
+              <ChevronDown className={`w-5 h-5 transition-transform ${activeTab === "details" ? "rotate-180 text-indigo-600" : "text-slate-400"}`} />
+            </button>
+            {activeTab === "details" && (
+              <div className="p-6 border-t border-slate-100 bg-slate-50/30 animate-in slide-in-from-top-2">
+                <div className="space-y-6">
+                  <div>
                 <h4 className="text-sm font-black text-slate-400 mb-3 uppercase tracking-wider">מידע בסיסי</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -718,13 +692,29 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
                   </div>
                 </div>
               </div>
+              {renderCustomFields("details")}
+            </div>
             </div>
           )}
+          </div>
 
           {/* Tab Content: Tags & Notes */}
-          {activeTab === "tags" && (
-            <div className="space-y-6 animate-in fade-in">
-              <div>
+          <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-sm shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab(activeTab === "tags" ? "" : "tags")}
+              className="flex items-center justify-between w-full p-4 font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Tag className="w-5 h-5 text-indigo-500" />
+                תיוגים והערות
+              </div>
+              <ChevronDown className={`w-5 h-5 transition-transform ${activeTab === "tags" ? "rotate-180 text-indigo-600" : "text-slate-400"}`} />
+            </button>
+            {activeTab === "tags" && (
+              <div className="p-6 border-t border-slate-100 bg-slate-50/30 animate-in slide-in-from-top-2">
+                <div className="space-y-6 animate-in fade-in">
+                  <div>
                 <h4 className="text-sm font-black text-slate-400 mb-3 uppercase tracking-wider">תוויות ותיוג</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
@@ -767,13 +757,29 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
                   className="flex w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>
+              {renderCustomFields("tags")}
+            </div>
             </div>
           )}
+          </div>
 
-          {/* Tab Content: Company & Lead Source */}
-          {activeTab === "company" && (
-            <div className="space-y-6 animate-in fade-in">
-              <div>
+          {/* Tab Content: Company Details */}
+          <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-sm shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab(activeTab === "company" ? "" : "company")}
+              className="flex items-center justify-between w-full p-4 font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Building className="w-5 h-5 text-indigo-500" />
+                חברה ומקור
+              </div>
+              <ChevronDown className={`w-5 h-5 transition-transform ${activeTab === "company" ? "rotate-180 text-indigo-600" : "text-slate-400"}`} />
+            </button>
+            {activeTab === "company" && (
+              <div className="p-6 border-t border-slate-100 bg-slate-50/30 animate-in slide-in-from-top-2">
+                <div className="space-y-6 animate-in fade-in">
+                  <div>
                 <h4 className="text-sm font-black text-slate-400 mb-3 uppercase tracking-wider">תעסוקה וארגון</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -847,80 +853,185 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
                   </div>
                 </div>
               </div>
+              {renderCustomFields("company")}
+            </div>
             </div>
           )}
+          </div>
 
           {/* Tab Content: Camp & Family */}
-          {activeTab === "camp" && (
-            <div className="space-y-6 animate-in fade-in">
-              <div>
-                <h4 className="text-sm font-black text-slate-400 mb-3 uppercase tracking-wider">פרטי הילד/ה (קייטנה)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600">שם הילד/ה</label>
-                    <Input
-                      value={childFirstName}
-                      onChange={(e) => setChildFirstName(e.target.value)}
-                      placeholder="שם פרטי..."
-                      className="rounded-xl"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600">שם משפחה</label>
-                    <Input
-                      value={childLastName}
-                      onChange={(e) => setChildLastName(e.target.value)}
-                      placeholder="שם משפחה..."
-                      className="rounded-xl"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600">ת.ז ילד</label>
-                    <Input
-                      value={childIdNumber}
-                      onChange={(e) => setChildIdNumber(e.target.value)}
-                      placeholder="מספר תעודת זהות..."
-                      className="rounded-xl"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600">כיתה</label>
-                    <Input
-                      value={childGrade}
-                      onChange={(e) => setChildGrade(e.target.value)}
-                      placeholder="לדוגמה: א'..."
-                      className="rounded-xl"
-                    />
-                  </div>
-                </div>
+          <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-sm shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab(activeTab === "camp" ? "" : "camp")}
+              className="flex items-center justify-between w-full p-4 font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-indigo-500" />
+                משפחה וקייטנה
               </div>
-
-              <div>
-                <h4 className="text-sm font-black text-slate-400 mb-3 uppercase tracking-wider">רגישויות ומגבלות</h4>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600">האם קיימת רגישות?</label>
-                    <select
-                      value={allergiesHas}
-                      onChange={(e) => setAllergiesHas(e.target.value)}
-                      className="flex h-10 w-full md:w-1/2 rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <option value="">בחר...</option>
-                      <option value="כן">כן</option>
-                      <option value="לא">לא</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600">פירוט הרגישות</label>
-                    <textarea
-                      value={allergiesDetails}
-                      onChange={(e) => setAllergiesDetails(e.target.value)}
-                      rows={3}
-                      placeholder="אם כן, פרט כאן..."
-                      className="flex w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    />
-                  </div>
+              <ChevronDown className={`w-5 h-5 transition-transform ${activeTab === "camp" ? "rotate-180 text-indigo-600" : "text-slate-400"}`} />
+            </button>
+            {activeTab === "camp" && (
+              <div className="p-6 border-t border-slate-100 bg-slate-50/30 animate-in slide-in-from-top-2">
+                <div className="space-y-6 animate-in fade-in">
+                  <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider">פרטי ילדים (קייטנה/רישום)</h4>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setChildrenList([
+                        ...childrenList, 
+                        { id: Date.now().toString(), first_name: "", last_name: "", grade: "", id_number: "", allergies_has: "", allergies_details: "" }
+                      ]);
+                    }}
+                    className="h-8 px-3 text-xs rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    הוסף ילד/ה
+                  </Button>
                 </div>
+                
+                {childrenList.length === 0 ? (
+                  <div className="p-6 text-center border-2 border-dashed border-slate-100 rounded-2xl text-slate-400 text-sm bg-slate-50/50">
+                    לא נרשמו ילדים תחת איש קשר זה
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {childrenList.map((child, index) => (
+                      <div key={child.id} className="border border-slate-200 rounded-xl bg-white overflow-hidden relative group shadow-sm">
+                        <button
+                          type="button"
+                          onClick={() => setOpenChildId(openChildId === child.id ? null : child.id)}
+                          className="flex items-center justify-between w-full p-3 font-bold text-slate-700 hover:bg-slate-50 transition-colors text-right"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs shrink-0">{index + 1}</span>
+                            <span>{child.first_name || "ילד חדש"} {child.last_name || ""}</span>
+                          </div>
+                          <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${openChildId === child.id ? "rotate-180 text-indigo-600" : "text-slate-400"}`} />
+                        </button>
+                        
+                        {openChildId === child.id && (
+                          <div className="p-4 border-t border-slate-100 bg-slate-50/30 animate-in slide-in-from-top-2">
+                            <button
+                              type="button"
+                              onClick={() => setChildrenList(childrenList.filter(c => c.id !== child.id))}
+                              className="absolute left-3 top-3 p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors z-10"
+                              title="מחק ילד"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-600">שם הילד/ה</label>
+                                <Input
+                                  value={child.first_name || ""}
+                                  onChange={(e) => {
+                                    const newArr = [...childrenList];
+                                    newArr[index].first_name = e.target.value;
+                                    setChildrenList(newArr);
+                                  }}
+                                  placeholder="שם פרטי..."
+                                  className="rounded-xl bg-white"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-600">שם משפחה</label>
+                                <Input
+                                  value={child.last_name || ""}
+                                  onChange={(e) => {
+                                    const newArr = [...childrenList];
+                                    newArr[index].last_name = e.target.value;
+                                    setChildrenList(newArr);
+                                  }}
+                                  placeholder="שם משפחה..."
+                                  className="rounded-xl bg-white"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-600">ת.ז ילד</label>
+                                <Input
+                                  value={child.id_number || ""}
+                                  onChange={(e) => {
+                                    const newArr = [...childrenList];
+                                    newArr[index].id_number = e.target.value;
+                                    setChildrenList(newArr);
+                                  }}
+                                  placeholder="מספר תעודת זהות..."
+                                  className="rounded-xl bg-white"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-600">כיתה</label>
+                                <Input
+                                  value={child.grade || ""}
+                                  onChange={(e) => {
+                                    const newArr = [...childrenList];
+                                    newArr[index].grade = e.target.value;
+                                    setChildrenList(newArr);
+                                  }}
+                                  placeholder="לדוגמה: א'..."
+                                  className="rounded-xl bg-white"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="border-t border-slate-100 pt-3 mt-3">
+                              <h5 className="text-[11px] font-black text-slate-400 mb-2">רגישויות ומגבלות</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                  <label className="text-xs font-bold text-slate-600">האם קיימת רגישות?</label>
+                                  <select
+                                    value={child.allergies_has || ""}
+                                    onChange={(e) => {
+                                      const newArr = [...childrenList];
+                                      newArr[index].allergies_has = e.target.value;
+                                      setChildrenList(newArr);
+                                    }}
+                                    className="flex h-10 w-full rounded-xl border border-input bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  >
+                                    <option value="">בחר...</option>
+                                    <option value="כן">כן</option>
+                                    <option value="לא">לא</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <label className="text-xs font-bold text-slate-600">פירוט הרגישות</label>
+                                  <Input
+                                    value={child.allergies_details || ""}
+                                    onChange={(e) => {
+                                      const newArr = [...childrenList];
+                                      newArr[index].allergies_details = e.target.value;
+                                      setChildrenList(newArr);
+                                    }}
+                                    placeholder="אם כן, פרט כאן..."
+                                    className="rounded-xl bg-white"
+                                  />
+                                </div>
+                                <div className="space-y-1.5 md:col-span-2">
+                                  <label className="text-xs font-bold text-slate-600">הצהרת בריאות (אישור)</label>
+                                  <Input
+                                    value={child.health_declaration || ""}
+                                    onChange={(e) => {
+                                      const newArr = [...childrenList];
+                                      newArr[index].health_declaration = e.target.value;
+                                      setChildrenList(newArr);
+                                    }}
+                                    placeholder="פרטי אישור בריאות..."
+                                    className="rounded-xl bg-white"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -962,12 +1073,29 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
                   </div>
                 </div>
               </div>
+              {renderCustomFields("camp")}
+            </div>
             </div>
           )}
+          </div>
 
           {/* Tab Content: Events Repeater */}
-          {activeTab === "events" && isEdit && (
-            <div className="space-y-4 animate-in fade-in">
+          {isEdit && (
+          <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-sm shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab(activeTab === "events" ? "" : "events")}
+              className="flex items-center justify-between w-full p-4 font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-indigo-500" />
+                אירועים ומפגשים
+              </div>
+              <ChevronDown className={`w-5 h-5 transition-transform ${activeTab === "events" ? "rotate-180 text-indigo-600" : "text-slate-400"}`} />
+            </button>
+            {activeTab === "events" && (
+              <div className="p-6 border-t border-slate-100 bg-slate-50/30 animate-in slide-in-from-top-2">
+                <div className="space-y-4 animate-in fade-in">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider">היסטוריית אירועים ומפגשים</h4>
                 <Button
@@ -1031,12 +1159,30 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
                   ))}
                 </div>
               )}
+              {renderCustomFields("events")}
             </div>
+            </div>
+            )}
+          </div>
           )}
 
           {/* Tab Content: Timeline */}
-          {activeTab === "timeline" && isEdit && (
-            <div className="space-y-4 animate-in fade-in">
+          {isEdit && (
+          <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-sm shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab(activeTab === "timeline" ? "" : "timeline")}
+              className="flex items-center justify-between w-full p-4 font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-indigo-500" />
+                ציר זמן
+              </div>
+              <ChevronDown className={`w-5 h-5 transition-transform ${activeTab === "timeline" ? "rotate-180 text-indigo-600" : "text-slate-400"}`} />
+            </button>
+            {activeTab === "timeline" && (
+              <div className="p-6 border-t border-slate-100 bg-slate-50/30 animate-in slide-in-from-top-2">
+                <div className="space-y-4 animate-in fade-in">
               <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider mb-2">ציר זמן אינטראקציות ופעולות</h4>
               
               <div className="relative border-r-2 border-slate-100 mr-3 pr-6 space-y-6 max-h-[350px] overflow-y-auto pl-1">
@@ -1083,22 +1229,60 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
                 )}
               </div>
             </div>
+            </div>
+            )}
+          </div>
           )}
 
           {/* Tab Content: Payments */}
-          {activeTab === "payments" && isEdit && (
-            <div className="space-y-6 animate-in fade-in">
+          {isEdit && (
+          <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-sm shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab(activeTab === "payments" ? "" : "payments")}
+              className="flex items-center justify-between w-full p-4 font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-indigo-500" />
+                תשלומים
+              </div>
+              <ChevronDown className={`w-5 h-5 transition-transform ${activeTab === "payments" ? "rotate-180 text-indigo-600" : "text-slate-400"}`} />
+            </button>
+            {activeTab === "payments" && (
+              <div className="p-6 border-t border-slate-100 bg-slate-50/30 animate-in slide-in-from-top-2">
+                <div className="space-y-6 animate-in fade-in">
               <h4 className="text-sm font-black text-slate-400 uppercase tracking-wider">סיכום רכישות והיסטוריית הזמנות</h4>
 
               {/* Stats Panel */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex flex-col justify-center">
                   <span className="text-[11px] font-bold text-emerald-600">סה"כ תרומות ותשלומים</span>
-                  <span className="text-xl font-black text-emerald-800 mt-1">₪{(contact?.total_spent || 0).toFixed(2)}</span>
+                  {mode === "edit" ? (
+                    <div className="mt-1 flex items-center gap-1">
+                      <span className="text-emerald-800 font-bold">₪</span>
+                      <Input
+                        type="number"
+                        value={totalSpent}
+                        onChange={(e) => setTotalSpent(Number(e.target.value))}
+                        className="h-8 bg-white/50 border-emerald-200 text-emerald-900 font-bold px-2 rounded-lg"
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-xl font-black text-emerald-800 mt-1">₪{(totalSpent || 0).toFixed(2)}</span>
+                  )}
                 </div>
                 <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex flex-col justify-center">
                   <span className="text-[11px] font-bold text-indigo-600">מספר עסקאות</span>
-                  <span className="text-xl font-black text-indigo-800 mt-1">{contact?.order_count || 0}</span>
+                  {mode === "edit" ? (
+                    <Input
+                      type="number"
+                      value={orderCount}
+                      onChange={(e) => setOrderCount(Number(e.target.value))}
+                      className="h-8 mt-1 bg-white/50 border-indigo-200 text-indigo-900 font-bold px-2 rounded-lg"
+                    />
+                  ) : (
+                    <span className="text-xl font-black text-indigo-800 mt-1">{orderCount || 0}</span>
+                  )}
                 </div>
                 <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex flex-col justify-center">
                   <span className="text-[11px] font-bold text-amber-600">עסקה אחרונה</span>
@@ -1144,30 +1328,37 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
                 )}
               </div>
             </div>
+            </div>
+            )}
+          </div>
           )}
 
+          </div>
+          
           {/* Footer buttons */}
-          <Modal.Footer>
-            <div className="flex gap-3 justify-end w-full">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="rounded-xl font-bold h-11 px-6"
-                disabled={loading}
-              >
-                ביטול
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white h-11 px-8 min-w-[120px]"
-                disabled={loading}
-              >
-                {loading ? "שומר..." : "שמור שינויים"}
-              </Button>
-            </div>
-          </Modal.Footer>
+          <div className="p-8 pt-4 shrink-0 border-t border-slate-50 bg-white">
+            <Modal.Footer>
+              <div className="flex gap-3 justify-end w-full">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  className="rounded-xl font-bold h-11 px-6"
+                  disabled={loading}
+                >
+                  ביטול
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white h-11 px-8 min-w-[120px]"
+                  disabled={loading}
+                >
+                  {loading ? "שומר..." : "שמור שינויים"}
+                </Button>
+              </div>
+            </Modal.Footer>
+          </div>
         </form>
         </div>
       </Modal.Content>

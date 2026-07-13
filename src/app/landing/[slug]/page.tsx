@@ -11,9 +11,25 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   
   if (!page) return { title: "דף נחיתה לא נמצא" };
   
+  const title = page.seo?.title || page.hero?.title || "דף נחיתה";
+  const description = page.seo?.description || page.hero?.description || "דף נחיתה שיווקי";
+  const image = page.seo?.image || "";
+
   return {
-    title: page.seo?.title || page.hero?.title || "דף נחיתה",
-    description: page.seo?.description || page.hero?.description || "דף נחיתה שיווקי",
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      images: image ? [{ url: image, width: 1200, height: 630 }] : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: image ? [image] : [],
+    }
   };
 }
 

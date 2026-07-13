@@ -1,0 +1,435 @@
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&ID=0&Type=1&Zeout=000000000&Amount=10&Date=06%2F09%2F2026&Currency=1&SpecialName=%D7%90%D7%A9%D7%A8+%D7%9E
+--- SAVE ACHNASOT RESPONSE ---
+{"Result" : "Error", "Message" : "ID לא קיים"}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&Zeout=000000000&Amount=5&Date=15%2F06%2F2026&Currency=1&SpecialName=%D7%90%D7%A9%D7%A8+%D7%9E%D7%A9%D7%95%D7%9C%D7%9D
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"425795","MosadId":"7001935","Zeout":"000000000","Type":"1","Amount":"5","Date":"15/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"אשר משולם","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=425795&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&Zeout=000000000&Amount=10&Date=15%2F06%2F2026&Currency=1&SpecialName=%D7%A9%D7%9C%D7%9E%D7%94+%D7%A4%D7%9C%D7%93%D7%9E%D7%9F
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"425803","MosadId":"7001935","Zeout":"000000000","Type":"1","Amount":"10","Date":"15/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"שלמה פלדמן","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=425803&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=425803&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=425803&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&Zeout=021797600&Amount=10&Date=30%2F06%2F2026&Currency=1&SpecialName=%D7%90%D7%A9%D7%A8+%D7%9E%D7%A9%D7%95%D7%9C%D7%9D
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432824","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"10","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"אשר משולם","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432824&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432824&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432824&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&Zeout=021797600&Amount=10&Date=30%2F06%2F2026&Currency=1&SpecialName=%D7%90%D7%A9%D7%A8+%D7%9E%D7%A9%D7%95%D7%9C%D7%9D
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432828","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"10","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"אשר משולם","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432828&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432828&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432828&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&Zeout=021797600&Amount=10&Date=30%2F06%2F2026&Currency=1&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432831","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"10","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432831&AchnasotId=432831&TransactionId=432831&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432831&AchnasotId=432831&TransactionId=432831&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432831&AchnasotId=432831&TransactionId=432831&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&Zeout=021797600&Amount=5&Date=30%2F06%2F2026&Currency=1&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432838","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"5","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432838&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432838&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432838&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&Zeout=021797600&Amount=5&Date=30%2F06%2F2026&Currency=1&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432847","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"5","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432847&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432847&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432847&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&Zeout=021797600&Amount=5&Date=30%2F06%2F2026&Currency=1&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED&Avour=%EB%EB%E4+
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432851","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"5","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"��� ","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432851&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432851&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432851&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&Zeout=021797600&Amount=5&Date=30%2F06%2F2026&Currency=1&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432884","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"5","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432884&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432884&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432884&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&Zeout=021797600&Amount=5&Date=30%2F06%2F2026&Currency=1&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432893","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"5","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432893&Type=1&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "לחצן לא מוכר.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&Zeout=021797600&Amount=1&Date=30%2F06%2F2026&Currency=1&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432910","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"1","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432910&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432910&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432910&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=30%2F06%2F2026&Currency=1&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432911","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"1","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432911&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432911&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432911&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=30%2F06%2F2026&Currency=1&Asmahta=&Asmahta2=&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED&Avour=%EB%EB%E4
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432918","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"1","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"���","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432918&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432918&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432918&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=30%2F06%2F2026&Currency=1&Asmahta=6&Asmahta2=&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432922","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"1","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432922&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432922&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432922&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=30%2F06%2F2026&Currency=1&Asmahta=6&Asmahta2=
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432928","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"1","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432928&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432928&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432928&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=30%2F06%2F2026&Currency=1&Asmahta=6&Asmahta2=&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432942","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"1","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&MosadId=7001935&ApiPassword=ht224&ID=432942&AchnasotId=432942&TransactionId=432942&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&MosadId=7001935&ApiPassword=ht224&ID=432942&AchnasotId=432942&TransactionId=432942&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&MosadId=7001935&ApiPassword=ht224&ID=432942&AchnasotId=432942&TransactionId=432942&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=30%2F06%2F2026&Currency=1&Asmahta=6&Asmahta2=&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432951","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"1","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&MosadId=7001935&ApiPassword=ht224&ID=432951&AchnasotId=432951&TransactionId=432951&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&MosadId=7001935&ApiPassword=ht224&ID=432951&AchnasotId=432951&TransactionId=432951&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&MosadId=7001935&ApiPassword=ht224&ID=432951&AchnasotId=432951&TransactionId=432951&Type=Achnasot&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=30%2F06%2F2026&Currency=1&Asmahta=6&Asmahta2=&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED&Avour=%FA%F8%E5%EE%E4
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432959","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"1","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"�����","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&MosadId=7001935&ApiPassword=ht224&ID=432959&AchnasotId=432959&TransactionId=432959&Type=Achnasot&PaymentType=Ragil&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&MosadId=7001935&ApiPassword=ht224&ID=432959&AchnasotId=432959&TransactionId=432959&Type=Achnasot&PaymentType=Ragil&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&MosadId=7001935&ApiPassword=ht224&ID=432959&AchnasotId=432959&TransactionId=432959&Type=Achnasot&PaymentType=Ragil&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=30%2F06%2F2026&Currency=1&Asmahta=6&Asmahta2=&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED&Avour=%FA%F8%E5%EE%E4
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432965","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"1","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"�����","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&MosadId=7001935&ApiPassword=ht224&ID=432965&AchnasotId=432965&TransactionId=432965&Type=Achnasot&PaymentType=Ragil&TamalType=400&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&MosadId=7001935&ApiPassword=ht224&ID=432965&AchnasotId=432965&TransactionId=432965&Type=Achnasot&PaymentType=Ragil&TamalType=400&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&MosadId=7001935&ApiPassword=ht224&ID=432965&AchnasotId=432965&TransactionId=432965&Type=Achnasot&PaymentType=Ragil&TamalType=400&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=30%2F06%2F2026&Currency=1&Asmahta=6&Asmahta2=&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432981","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"1","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432981&Type=Achnasot&Tkufa=2026&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432981&Type=Achnasot&Tkufa=2026&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432981&Type=Achnasot&Tkufa=2026&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=NaN%2FNaN%2F2024&Currency=1&Asmahta=6&Asmahta2=&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"Result" : "Error", "Message" : "תאריך לא תקין"}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=01%2F01%2F2023&Currency=1&Asmahta=6&Asmahta2=&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"432991","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"1","Date":"01/01/2023 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432991&Type=Achnasot&Tkufa=2023&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432991&Type=Achnasot&Tkufa=2023&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=432991&Type=Achnasot&Tkufa=2023&TamalType=405&Currency=1
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=&Currency=1&Asmahta=6&Asmahta2=&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"Result" : "Error", "Message" : "תאריך לא תקין"}
+
+--- SAVE ACHNASOT REQUEST ---
+Action=SaveAchnasot&MosadNumber=7001935&ApiPassword=ht224&Type=1&TypeName=1&Zeout=021797600&Amount=1&Date=30%2F6%2F2026&Currency=1&Asmahta=6&Asmahta2=&SpecialName=%E0%F9%F8+%EE%F9%E5%EC%ED
+--- SAVE ACHNASOT RESPONSE ---
+{"ID":"433006","MosadId":"7001935","Zeout":"021797600","Type":"1","Amount":"1","Date":"30/06/2026 00:00:00","Groupe":"","Avour":"","SpecialName":"��� �����","SpecialAdresse":"","Currency":"1","Asmahta":"","Asmahta2":"","Deleted":"False","KabalaId":"","InvoiceId":"","TypeName":"מזומן"}
+
+--- CREATE INVOICE REQUEST (Retry 1) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=433006&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 2) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=433006&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}
+
+--- CREATE INVOICE REQUEST (Retry 3) ---
+https://matara.pro/nedarimplus/Reports/Tamal3.aspx?Action=CreateInvoice&MosadNumber=7001935&ApiPassword=ht224&ID=433006&Type=Achnasot&TamalType=405
+--- CREATE INVOICE RESPONSE ---
+{"Status" : "Error", "Message" : "שגיאה באיתור הכנסה. פנה לתמיכה.", "Message2" : ""}

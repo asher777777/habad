@@ -15,7 +15,7 @@ export async function getServicePage(slug: string) {
     const docSnap = await docRef.get();
     
     if (docSnap.exists) {
-      return { slug: docSnap.id, ...docSnap.data() } as any;
+      return { ...docSnap.data(), slug: docSnap.id } as any;
     }
     return null;
   } catch (error) {
@@ -26,11 +26,24 @@ export async function getServicePage(slug: string) {
 
 export async function getAllServices() {
   try {
-    const snapshot = await adminDb.collection("services").get();
-    return snapshot.docs.map(doc => ({
+    const [servicesSnap, landingSnap] = await Promise.all([
+      adminDb.collection("services").get(),
+      adminDb.collection("landing").get()
+    ]);
+    
+    const services = servicesSnap.docs.map(doc => ({
+      ...doc.data(),
       slug: doc.id,
-      ...doc.data()
+      type: "service"
     })) as any[];
+    
+    const landingPages = landingSnap.docs.map(doc => ({
+      ...doc.data(),
+      slug: doc.id,
+      type: "landing"
+    })) as any[];
+    
+    return [...services, ...landingPages];
   } catch (error) {
     console.warn("Error fetching all services:", (error as Error).message);
     return [];
@@ -52,7 +65,7 @@ export async function saveServicePage(slug: string, content: any) {
     return { success: true };
   } catch (error: any) {
     console.error(`Error saving service content for ${slug}:`, error);
-    throw new Error(error.message || "Failed to save to Firebase");
+    return { success: false, error: error.message || "Failed to save to Firebase" };
   }
 }
 
@@ -69,21 +82,25 @@ export async function incrementPageView(slug: string) {
   }
 }
 
-export async function deleteServicePage(slug: string) {
+export async function deleteServicePage(slug: string, type: string = 'service') {
   try {
     const session = await auth();
     if (!session?.user) throw new Error("Unauthorized");
     
-    await adminDb.collection("services").doc(slug).delete();
+    const collectionName = type === 'landing' ? 'landing' : 'services';
+    await adminDb.collection(collectionName).doc(slug).delete();
     revalidatePath(`/dashboard/services`);
+    revalidatePath(`/dashboard`);
+    revalidatePath(`/services`);
+    revalidatePath(`/`);
     return { success: true };
   } catch (error: any) {
-    console.error(`Error deleting service content for ${slug}:`, error);
-    throw new Error(error.message || "Failed to delete from Firebase");
+    console.error(`Error deleting content for ${slug}:`, error);
+    return { success: false, error: error.message || "Failed to delete from Firebase" };
   }
 }
 
-export async function generatePageWithAI(prompt: string, slug: string, type: 'service' | 'landing' | 'post', tone: string = 'רגיל', audience: string = 'כולם') {
+export async function generatePageWithAI(prompt: string, slug: string, type: 'service' | 'landing' | 'post', tone: string = 'רגיל', audience: string = 'כולם', selectedSections: string[] = ['hero', 'services', 'contact']) {
   try {
     const session = await auth();
     if (!session?.user) throw new Error("Unauthorized");
@@ -102,31 +119,24 @@ export async function generatePageWithAI(prompt: string, slug: string, type: 'se
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
 
-    let systemPrompt = `You are an expert Jewish/Chabad copywriter and web designer.
+    const selectedSectionsList = selectedSections.join(", ");
+
+    let systemPrompt = `You are an expert Jewish/Chabad copywriter and web designer. Your goal is to produce extremely high-quality, engaging, and emotionally resonant Hebrew content.
 Task: Generate the JSON content for a new page based on the user's prompt.
 Target Audience: ${audience}
 Tone of Voice: ${tone}
 Page Type: ${type}
+User Selected Sections: ${selectedSectionsList}
 
-CRITICAL RULES FOR REGIONS & LAYOUTS BASED ON PAGE TYPE:
-1. "service" page:
-   - hero: layout "spatial" or "fz". Include main title, short desc, primaryButton linking to "#contact".
-   - richContent: visible=true, layout "two-column". Detailed explanation.
-   - services: visible=true, layout "grid". Features/stages of the service.
-   - contact: visible=true. Includes a custom FormConfig tailored to the service.
-   - Hidden (visible=false): landingSection, community, livePosts, mainContent.
-2. "landing" page:
-   - hero: layout "progressive". High conversion title (AIDA model). No buttons.
-   - mainContent: visible=true, layout "bento". Core benefits.
-   - community: visible=true, layout "centered". Social proof/testimonial.
-   - landingSection: visible=true, layout "split-left", formMode "visible". The main form (FormConfig).
-   - Hidden (visible=false): contact, services, richContent, livePosts.
-3. "post" page:
-   - hero: layout "thumb". Article title and subtitle.
-   - richContent: visible=true, layout "center". The main article body in HTML.
-   - livePosts: visible=true, layout "grid".
-   - contact: visible=true. Simple newsletter/whatsapp form.
-   - Hidden (visible=false): landingSection, services, community, mainContent.
+CRITICAL RULES FOR CONTENT QUALITY & PLACEHOLDERS:
+1. Write compelling, human-like Hebrew text. Avoid robotic phrasing. Use rich vocabulary suited for the requested Tone of Voice.
+2. If the user's prompt lacks specific details for a certain field, DO NOT leave it blank. Instead, use a generic placeholder sentence in Hebrew (e.g., "כאן יופיע תיאור קצר ומושך על הפעילות שלנו...", "טקסט מורחב על החוויה...", "כותרת ראשית מרשימה").
+3. Ensure every section has enough text to look good visually. A paragraph should be at least 2-3 sentences.
+
+CRITICAL RULES FOR REGIONS (SECTIONS) VISIBILITY:
+1. ONLY the sections listed in "User Selected Sections" (${selectedSectionsList}) should have \`visible: true\`.
+2. ALL other sections MUST have \`visible: false\`.
+3. You must completely ignore the default layout rules if they contradict the user's selected sections. The user explicitly chose what to show!
 
 SECTION ORDER RULE (CRITICAL):
 You MUST provide a "sectionOrder" array containing exactly these section keys: "hero", "mainContent", "services", "community", "livePosts", "contact", "landingSection", "richContent".
@@ -135,16 +145,16 @@ You MUST order this array so that ALL sections with visible=true appear first, a
 FORM CONFIG RULE:
 For sections with forms (contact or landingSection) that are visible, provide a custom "form" object. Set submit_button_text, submit_button_bg_color, and fields (label, type, map_to, required).
 
-JSON Structure:
+JSON Structure Example:
 {
   "seo": { "title": "SEO Title", "description": "SEO Description" },
-  "hero": { "title": "...", "subtitle": "...", "description": "...", "layout": "...", "buttonsVisible": true, "primaryButton": { "text": "...", "link": "..." } },
-  "mainContent": { "visible": true, "title": "...", "description": "...", "layout": "..." },
-  "services": { "visible": true, "title": "...", "layout": "...", "items": [{"id":"1", "title":"...", "description":"...", "icon":"Star", "url":"#", "isVisible":true}] },
-  "community": { "visible": true, "title": "...", "description": "...", "quote": "...", "layout": "...", "badgeVisible": false, "buttonVisible": false },
+  "hero": { "title": "...", "subtitle": "...", "description": "...", "layout": "spatial", "buttonsVisible": true, "primaryButton": { "text": "...", "link": "..." } },
+  "mainContent": { "visible": true, "title": "...", "description": "...", "layout": "bento" },
+  "services": { "visible": true, "title": "...", "layout": "grid", "items": [{"id":"1", "title":"...", "description":"...", "icon":"Star", "url":"#", "isVisible":true}] },
+  "community": { "visible": true, "title": "...", "description": "...", "quote": "...", "layout": "centered", "badgeVisible": false, "buttonVisible": false },
   "livePosts": { "visible": true, "layout": "grid" },
-  "contact": { "visible": true, "title": "...", "form": { "enabled": true, "submit_button_text": "שלח", "fields": [...] } },
-  "landingSection": { "visible": true, "title": "...", "description": "...", "layout": "split-left", "formMode": "visible", "form": { "enabled": true, "submit_button_text": "הירשם", "fields": [...] } },
+  "contact": { "visible": true, "title": "...", "form": { "enabled": true, "submit_button_text": "שלח", "fields": [] } },
+  "landingSection": { "visible": true, "title": "...", "description": "...", "layout": "split-left", "formMode": "visible", "form": { "enabled": true, "submit_button_text": "הירשם", "fields": [] } },
   "richContent": { "visible": true, "heading": "...", "body": "<p>...</p>", "layout": "center" },
   "sectionOrder": ["hero", "richContent", "services", "contact", "mainContent", "community", "landingSection", "livePosts"],
   "imagePrompt": "English prompt for cover image."
@@ -212,19 +222,21 @@ export async function generateHeroImageWithAI(prompt: string) {
     }
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          instances: [{ prompt }],
+          instances: [
+            {
+              prompt: prompt
+            }
+          ],
           parameters: {
-            sampleCount: 1,
-            aspectRatio: "16:9",
-            outputMimeType: "image/jpeg",
-          },
+            sampleCount: 1
+          }
         }),
       }
     );
@@ -241,7 +253,7 @@ export async function generateHeroImageWithAI(prompt: string) {
     }
 
     const data = await response.json();
-    const base64Image = data.predictions?.[0]?.bytesBase64Encoded;
+    const base64Image = data?.predictions?.[0]?.bytesBase64Encoded;
     if (!base64Image) {
       throw new Error("לא התקבלה תמונה תקינה מהשרת.");
     }

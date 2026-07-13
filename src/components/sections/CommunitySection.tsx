@@ -62,6 +62,7 @@ const EditableText = ({
 };
 
 export interface CommunitySectionProps {
+  id?: string;
   title?: string;
   subtitle?: string;
   description?: string;
@@ -79,6 +80,7 @@ export interface CommunitySectionProps {
 }
 
 export const CommunitySection = ({
+  id,
   title = "קהילה שהיא <span class=\"text-secondary\">משפחה</span>",
   subtitle = "",
   description = "אנחנו כאן כדי להיות הבית שלכם באזור. המטרה שלנו היא ליצור מרחב בטוח, חם ומקבל לכל תושב ותושבת, ללא קשר לרקע או רמת דתיות.",
@@ -184,7 +186,7 @@ export const CommunitySection = ({
   );
 
   return (
-    <section className={cn("py-24 px-6 bg-card/30 overflow-hidden relative", isEditing && "ring-4 ring-primary/20")}>
+    <section id={id} className={cn("py-24 px-6 bg-card/30 overflow-hidden relative", isEditing && "ring-4 ring-primary/20")}>
       <motion.div 
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}

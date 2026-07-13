@@ -227,6 +227,7 @@ export async function createContact(contactData: Partial<Contact>) {
       notes: contactData.notes || "",
       events: contactData.events || [],
       form_submissions: contactData.form_submissions || [],
+      children: contactData.children || [],
       child_first_name: contactData.child_first_name || "",
       child_last_name: contactData.child_last_name || "",
       child_grade: contactData.child_grade || "",
@@ -461,6 +462,7 @@ export async function importContacts(importedContacts: Partial<Contact>[]) {
         notes: cData.notes || "",
         events: cData.events || [],
         form_submissions: cData.form_submissions || [],
+        children: cData.children || [],
         child_first_name: cData.child_first_name || "",
         child_last_name: cData.child_last_name || "",
         child_grade: cData.child_grade || "",
@@ -525,6 +527,9 @@ export async function submitCRMForm(params: {
         if (field.map_to) {
           contactData[field.map_to] = value;
         }
+        if (field.map_to_2) {
+          contactData[field.map_to_2] = value;
+        }
       }
     });
 
@@ -581,17 +586,65 @@ export async function submitCRMForm(params: {
       updatedAt: new Date().toISOString(),
     };
 
-    const extraFields = [
-      "gender", "birth_date", "work_phone", "website",
-      "mh_crm_city", "mh_crm_street", "company_name",
-      "job_title", "notes", "tg2", "tg3",
-      "child_first_name", "child_last_name", "child_grade",
-      "child_id_number", "allergies_has", "allergies_details",
-      "father_name", "mother_name", "father_phone", "mother_phone"
-    ];
-    extraFields.forEach((field) => {
-      if (contactData[field] !== undefined) {
-        dbData[field] = contactData[field];
+    if (amountPaid) {
+      dbData.total_spent = (existingData?.total_spent || 0) + amountPaid;
+      dbData.order_count = (existingData?.order_count || 0) + 1;
+      dbData.last_order_date = new Date().toISOString();
+    }
+
+    let currentChildren: any[] = existingData?.children || [];
+    
+    // Migrate existing flat child fields if children array is empty
+    if (existingData && !existingData.children && existingData.child_first_name) {
+      currentChildren.push({
+        id: Date.now().toString() + Math.random().toString().slice(2, 6),
+        first_name: existingData.child_first_name,
+        last_name: existingData.child_last_name || "",
+        grade: existingData.child_grade || "",
+        id_number: existingData.child_id_number || "",
+        allergies_has: existingData.allergies_has || "",
+        allergies_details: existingData.allergies_details || ""
+      });
+    }
+
+    const incomingChildName = contactData["child_first_name"];
+    const incomingChildId = contactData["child_id_number"];
+
+    if (incomingChildName || incomingChildId) {
+      const existingChildIndex = currentChildren.findIndex(c => 
+        (incomingChildId && c.id_number === incomingChildId) || 
+        (!incomingChildId && incomingChildName && c.first_name === incomingChildName)
+      );
+
+      const newChildData = {
+        first_name: incomingChildName || "",
+        last_name: contactData["child_last_name"] || "",
+        grade: contactData["child_grade"] || "",
+        id_number: incomingChildId || "",
+        allergies_has: contactData["allergies_has"] || "",
+        allergies_details: contactData["allergies_details"] || ""
+      };
+
+      if (existingChildIndex >= 0) {
+        currentChildren[existingChildIndex] = { ...currentChildren[existingChildIndex], ...newChildData };
+      } else {
+        currentChildren.push({ ...newChildData, id: Date.now().toString() + Math.random().toString().slice(2, 6) });
+      }
+      dbData.children = currentChildren;
+    }
+
+    // Append any field that was mapped, including custom dynamic fields
+    Object.keys(contactData).forEach((key) => {
+      if (
+        contactData[key] !== undefined && 
+        key !== "conta_name" && 
+        key !== "f_m" && 
+        key !== "email" && 
+        key !== "conta_phone" &&
+        !key.startsWith("child_") &&
+        !key.startsWith("allergies_")
+      ) {
+        dbData[key] = contactData[key];
       }
     });
 
@@ -796,4 +849,123 @@ export async function sendWhatsAppAction(contactId: string, phone: string, messa
   }
 }
 
+// 14. Get custom CRM fields
+export async function getCustomFields() {
+  try {
+    const ownerId = await getUserId();
+    const docRef = adminDb.collection("crm_settings").doc(`custom_fields_${ownerId}`);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      return [];
+    }
+    const data = docSnap.data();
+    return (data?.fields || []) as Array<{
+      id: string;
+      category: string;
+      type: string;
+      label: string;
+    }>;
+  } catch (error) {
+    console.error("Error in getCustomFields:", error);
+    return [];
+  }
+}
 
+// 15. Add custom CRM field
+export async function addCustomField(field: Omit<{id: string; category: string; type: string; label: string;}, "id">) {
+  try {
+    const ownerId = await getUserId();
+    const docRef = adminDb.collection("crm_settings").doc(`custom_fields_${ownerId}`);
+    const docSnap = await docRef.get();
+    
+    const newField = {
+      id: `custom_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ...field,
+    };
+
+    if (!docSnap.exists) {
+      await docRef.set({ fields: [newField] });
+    } else {
+      const data = docSnap.data();
+      const fields = data?.fields || [];
+      await docRef.update({ fields: [...fields, newField] });
+    }
+    
+    return { success: true, field: newField };
+  } catch (error: any) {
+    console.error("Error in addCustomField:", error);
+    return { success: false, error: error.message || String(error) };
+  }
+}
+
+// 16. Get form templates
+export async function getFormTemplates() {
+  try {
+    const ownerId = await getUserId();
+    const docRef = adminDb.collection("crm_settings").doc(`form_templates_${ownerId}`);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      return [];
+    }
+    const data = docSnap.data();
+    return (data?.templates || []) as Array<{
+      id: string;
+      name: string;
+      config: any;
+      createdAt: string;
+    }>;
+  } catch (error) {
+    console.error("Error in getFormTemplates:", error);
+    return [];
+  }
+}
+
+// 17. Save form template
+export async function saveFormTemplate(name: string, config: any) {
+  try {
+    const ownerId = await getUserId();
+    const docRef = adminDb.collection("crm_settings").doc(`form_templates_${ownerId}`);
+    const docSnap = await docRef.get();
+    
+    const newTemplate = {
+      id: `tpl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name,
+      config,
+      createdAt: new Date().toISOString()
+    };
+
+    if (!docSnap.exists) {
+      await docRef.set({ templates: [newTemplate] });
+    } else {
+      const data = docSnap.data();
+      const templates = data?.templates || [];
+      await docRef.update({ templates: [...templates, newTemplate] });
+    }
+    
+    return { success: true, template: newTemplate };
+  } catch (error: any) {
+    console.error("Error in saveFormTemplate:", error);
+    return { success: false, error: error.message || String(error) };
+  }
+}
+
+// 18. Delete form template
+export async function deleteFormTemplate(id: string) {
+  try {
+    const ownerId = await getUserId();
+    const docRef = adminDb.collection("crm_settings").doc(`form_templates_${ownerId}`);
+    const docSnap = await docRef.get();
+    
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      const templates = data?.templates || [];
+      const updatedTemplates = templates.filter((tpl: any) => tpl.id !== id);
+      await docRef.update({ templates: updatedTemplates });
+    }
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in deleteFormTemplate:", error);
+    return { success: false, error: error.message || String(error) };
+  }
+}

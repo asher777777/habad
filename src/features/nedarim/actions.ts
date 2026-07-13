@@ -47,6 +47,7 @@ export async function createNedarimTransaction(data: {
   redirectUrl: string;
   receiptType?: string;
   isRecurring?: boolean;
+  installments?: number;
 }) {
   const settings = await getNedarimSettings();
   if (!settings?.mosadid || !settings?.apivalid) {
@@ -62,12 +63,12 @@ export async function createNedarimTransaction(data: {
   body.append("Amount", data.amount.toString());
   
   if (data.isRecurring) {
-    body.append("Tashlumim", "0");
+    body.append("Tashlumim", (data.installments !== undefined && data.installments > 0) ? data.installments.toString() : "0");
     // Some Nedarim terminals use Tashlumim=0 for Keva, or require Keva=1
     // We send both to be safe depending on terminal configuration
     body.append("Keva", "1");
   } else {
-    body.append("Tashlumim", "1");
+    body.append("Tashlumim", (data.installments !== undefined && data.installments > 0) ? data.installments.toString() : "1");
   }
 
   body.append("Currency", "1"); // 1 is usually ILS
@@ -84,7 +85,7 @@ export async function createNedarimTransaction(data: {
     const [firstName = "", ...lastNameParts] = data.clientName.split(" ");
     body.append("FirstName", firstName);
     body.append("LastName", lastNameParts.join(" "));
-    body.append("PaymentType", "Ragil");
+    body.append("PaymentType", data.isRecurring ? "HK" : "Ragil");
     body.append("CallBack", data.redirectUrl); // Using redirect for callback in iframe
   } else {
     body.append("ClientName", data.clientName);
@@ -94,7 +95,7 @@ export async function createNedarimTransaction(data: {
   const response = await fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
     },
     body: body.toString(),
   });
@@ -132,7 +133,7 @@ export async function getNedarimKupot() {
     const res = await fetch("https://www.matara.pro/nedarimplus/Mechubad/Reports/ManageReports.aspx", {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
       },
       body: body.toString(),
     });
@@ -163,7 +164,7 @@ export async function getNedarimKupot() {
 export async function createManualInvoice(data: {
   clientName: string;
   amount: number;
-  paymentType: "Cash" | "Check" | "BankTransfer";
+  paymentType: "Cash" | "Check" | "BankTransfer" | "Credit";
   receiptType: string;
   zeout?: string;
   phone?: string;
@@ -174,6 +175,8 @@ export async function createManualInvoice(data: {
   branchNumber?: string;
   accountNumber?: string;
   transferRef?: string;
+  cardType?: string;
+  last4Digits?: string;
 }) {
   try {
     const { auth } = await import("@/lib/auth");
@@ -185,61 +188,165 @@ export async function createManualInvoice(data: {
       return { success: false, error: "לא הוגדרה סיסמת API לדוחות בהגדרות נדרים פלוס." };
     }
 
-    const body = new URLSearchParams();
-    body.append("Action", "CreateInvoice");
-    body.append("MosadNumber", settings.mosadid);
-    body.append("ApiPassword", settings.apipassword);
-    body.append("Type", "Achnasot"); // External income
-    body.append("TamalType", data.receiptType);
-    body.append("Amount", data.amount.toString());
-    body.append("ClientName", data.clientName);
-    
-    // PaymentMethod: Nedarim usually accepts these string values for Achnasot
-    const methodMap = {
-      "Cash": "מזומן",
-      "Check": "שיק",
-      "BankTransfer": "העברה בנקאית"
+    // --- STEP 1: Save External Income (SaveAchnasot) ---
+    const saveBody = new URLSearchParams();
+    saveBody.append("Action", "SaveAchnasot");
+    saveBody.append("MosadNumber", settings.mosadid);
+    saveBody.append("ApiPassword", settings.apipassword);
+
+    const methodTypeMap: Record<string, string> = {
+      "Cash": "1",
+      "Check": "2",
+      "BankTransfer": "3",
+      "Credit": "4"
     };
-    body.append("PaymentType", methodMap[data.paymentType]);
+    saveBody.append("Type", methodTypeMap[data.paymentType] || "1");
+    saveBody.append("TypeName", methodTypeMap[data.paymentType] || "1"); // User requested TypeName instead of/in addition to Type
+    saveBody.append("Zeout", data.zeout || "000000000"); // Zeout is mandatory for SaveAchnasot
+    saveBody.append("Amount", data.amount.toString());
 
-    if (data.zeout) body.append("Zeout", data.zeout);
-    if (data.phone) body.append("Phone", data.phone);
-    if (data.details) body.append("Details", data.details); // Check number / bank ref
-    if (data.date) body.append("Date", data.date);
+    // Format date as dd/mm/yyyy
+    let dateStr = data.date || "01/01/2023"; // Fallback just in case
+    if (dateStr.includes("-")) {
+      const parts = dateStr.split("-");
+      if (parts.length === 3) {
+        dateStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+    saveBody.append("Date", dateStr);
 
-    if (data.paymentType === "Check") {
-      if (data.checkNumber) body.append("Asmahta", data.checkNumber);
+    saveBody.append("Currency", "1"); // Shekel
+    
+    // Set default empty Asmahta parameters as the API might expect the keys to exist
+    let asmahta = "";
+    let asmahta2 = "";
+
+    if (data.paymentType === "Cash") {
+      asmahta = "6"; // As requested by user
+    } else if (data.paymentType === "Check") {
+      if (data.checkNumber) asmahta = data.checkNumber;
       if (data.bankName && data.branchNumber && data.accountNumber) {
-        body.append("Asmahta2", `${data.bankName}-${data.branchNumber}-${data.accountNumber}`);
+        asmahta2 = `${data.bankName}-${data.branchNumber}-${data.accountNumber}`;
       }
     } else if (data.paymentType === "BankTransfer") {
-      if (data.transferRef) body.append("Asmahta", data.transferRef);
+      if (data.transferRef) asmahta = data.transferRef;
       if (data.bankName && data.branchNumber && data.accountNumber) {
-        body.append("Asmahta2", `${data.bankName}-${data.branchNumber}-${data.accountNumber}`);
+        asmahta2 = `${data.bankName}-${data.branchNumber}-${data.accountNumber}`;
       }
+    } else if (data.paymentType === "Credit") {
+      if (data.cardType) asmahta = data.cardType;
+      if (data.last4Digits) asmahta2 = data.last4Digits;
     }
 
-    const res = await fetch("https://www.matara.pro/nedarimplus/Mechubad/Reports/ManageReports.aspx", {
+    saveBody.append("Asmahta", asmahta);
+    saveBody.append("Asmahta2", asmahta2);
+
+    function encodeToWindows1255Url(str: string): string {
+      if (!str) return "";
+      let result = "";
+      for (let i = 0; i < str.length; i++) {
+        const charCode = str.charCodeAt(i);
+        if (charCode >= 0x05D0 && charCode <= 0x05EA) {
+          const win1255Code = charCode - 0x05D0 + 0xE0;
+          result += "%" + win1255Code.toString(16).toUpperCase();
+        } else if (charCode === 0x20) {
+          result += "+";
+        } else if (charCode < 128) {
+          result += encodeURIComponent(str.charAt(i));
+        } else {
+          result += encodeURIComponent(str.charAt(i));
+        }
+      }
+      return result;
+    }
+
+    let saveBodyString = saveBody.toString();
+    saveBodyString += "&SpecialName=" + encodeToWindows1255Url(data.clientName);
+    if (data.details) saveBodyString += "&Avour=" + encodeToWindows1255Url(data.details);
+
+    const saveRes = await fetch("https://matara.pro/nedarimplus/Reports/Manage3.aspx", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: body.toString(),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: saveBodyString,
     });
 
-    const text = await res.text();
-    let responseData;
+    const saveText = await saveRes.text();
+    const fs = require('fs');
+    
+    console.log("--- SAVE ACHNASOT REQUEST ---");
+    console.log(saveBodyString);
+    console.log("--- SAVE ACHNASOT RESPONSE ---");
+    console.log(saveText);
+
+    fs.appendFileSync('nedarim-log.txt', `\n--- SAVE ACHNASOT REQUEST ---\n${saveBodyString}\n--- SAVE ACHNASOT RESPONSE ---\n${saveText}\n`);
+
+    let saveResponseData;
     try {
-      responseData = JSON.parse(text);
+      saveResponseData = JSON.parse(saveText);
     } catch {
-      return { success: false, error: "שגיאה בתשובת השרת מנדרים פלוס." };
+      return { success: false, error: "שגיאה בשמירת התנועה בנדרים פלוס (תשובה לא תקינה)." };
     }
 
-    if (responseData.Result === "Error" || responseData.Status === "Error") {
-      return { success: false, error: responseData.Message || "שגיאה בהפקת הקבלה." };
+    if (saveResponseData.Result === "Error" || saveResponseData.Status === "Error") {
+      return { success: false, error: saveResponseData.Message || "שגיאה בשמירת התנועה." };
     }
 
-    return { success: true, message: responseData.Message || "הקבלה הופקה בהצלחה." };
+    const achnasotId = saveResponseData.ID;
+    if (!achnasotId) {
+      return { success: false, error: "לא התקבל מזהה תנועה מנדרים פלוס." };
+    }
+
+    // --- STEP 2: Generate Invoice for the new Income ---
+    const invoiceBody = new URLSearchParams();
+    invoiceBody.append("Action", "CreateInvoice");
+    invoiceBody.append("MosadNumber", settings.mosadid);
+    invoiceBody.append("ApiPassword", settings.apipassword);
+    invoiceBody.append("ID", achnasotId.toString());
+    invoiceBody.append("Type", "Achnasot");
+    invoiceBody.append("TamalType", data.receiptType); // 400 or 405
+
+    // Initial delay to prevent replica lag
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    let invResponseData;
+    let invUrl = "";
+    let invText = "";
+    let retries = 3;
+    while (retries > 0) {
+      invUrl = "https://matara.pro/nedarimplus/Reports/Tamal3.aspx";
+      const invRes = await fetch(invUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: invoiceBody.toString(),
+      });
+
+      invText = await invRes.text();
+      
+      console.log(`--- CREATE INVOICE REQUEST (Retry ${4 - retries}) ---`);
+      console.log(invUrl);
+      console.log("--- CREATE INVOICE RESPONSE ---");
+      console.log(invText);
+
+      fs.appendFileSync('nedarim-log.txt', `\n--- CREATE INVOICE REQUEST (Retry ${4 - retries}) ---\n${invUrl}\n--- CREATE INVOICE RESPONSE ---\n${invText}\n`);
+
+      try {
+        invResponseData = JSON.parse(invText);
+      } catch {
+        return { success: false, error: "שגיאה בהפקת הקבלה (תשובה לא תקינה)." };
+      }
+
+      if (invResponseData.Result === "Error" || invResponseData.Status === "Error") {
+        if (invResponseData.Message === "שגיאה באיתור הכנסה. פנה לתמיכה." && retries > 1) {
+          retries--;
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          continue;
+        }
+        return { success: false, error: invResponseData.Message || "שגיאה בהפקת הקבלה.", debug: { saveRequest: saveBodyString, saveResponse: saveText, invoiceRequest: invUrl, invoiceResponse: invText } };
+      }
+      break;
+    }
+
+    return { success: true, message: invResponseData.Message || "הקבלה הופקה בהצלחה.", debug: { saveRequest: saveBodyString, saveResponse: saveText, invoiceRequest: invUrl, invoiceResponse: invText } };
   } catch (error: any) {
     console.error("Error creating manual invoice:", error);
     return { success: false, error: error.message };

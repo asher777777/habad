@@ -46,6 +46,7 @@ export function DashboardQuickActions() {
   const [servicePrompt, setServicePrompt] = useState("");
   const [serviceTone, setServiceTone] = useState("חם, מקרב ומזמין");
   const [serviceAudience, setServiceAudience] = useState("כל הקהילה (חילונים ומסורתיים)");
+  const [selectedSections, setSelectedSections] = useState<string[]>(['hero', 'services', 'contact']);
   const [serviceLoading, setServiceLoading] = useState(false);
   const [serviceError, setServiceError] = useState("");
 
@@ -60,12 +61,13 @@ export function DashboardQuickActions() {
     setServiceError("");
 
     try {
-      const result = await generatePageWithAI(servicePrompt, serviceSlug, serviceType, serviceTone, serviceAudience);
+      const result = await generatePageWithAI(servicePrompt, serviceSlug, serviceType, serviceTone, serviceAudience, selectedSections);
       if (result.success) {
         setIsServiceOpen(false);
         setWizardStep(1);
         setServiceSlug("");
         setServicePrompt("");
+        setSelectedSections(['hero', 'services', 'contact']);
         
         // Redirect to new page
         if (serviceType === 'post') {
@@ -285,11 +287,51 @@ export function DashboardQuickActions() {
                 </div>
               )}
 
-              {/* Step 3: Prompt */}
+              {/* Step 3: Sections Selection */}
               {wizardStep === 3 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-600">5. על מה העמוד? (הנחיה ל-AI)</label>
+                    <label className="block text-xs font-bold text-slate-600">5. בחירת אזורים להצגה</label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        { id: 'hero', label: 'פתיח (Hero)' },
+                        { id: 'services', label: 'שירותים / פריטים' },
+                        { id: 'contact', label: 'טופס יצירת קשר' },
+                        { id: 'richContent', label: 'תוכן טקסטואלי' },
+                        { id: 'mainContent', label: 'תוכן מרכזי (בנטו)' },
+                        { id: 'community', label: 'המלצות וקהילה' },
+                        { id: 'landingSection', label: 'טופס הרשמה' },
+                        { id: 'livePosts', label: 'עדכונים מהשטח' },
+                      ].map((sec) => {
+                        const isChecked = selectedSections.includes(sec.id);
+                        return (
+                          <label key={sec.id} className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${isChecked ? 'bg-indigo-50/50 border-indigo-500' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
+                            <input 
+                              type="checkbox" 
+                              className="rounded text-indigo-600 w-4 h-4 focus:ring-indigo-500"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedSections([...selectedSections, sec.id]);
+                                } else {
+                                  setSelectedSections(selectedSections.filter(id => id !== sec.id));
+                                }
+                              }}
+                            />
+                            <span className={`text-xs font-medium ${isChecked ? 'text-indigo-700' : 'text-slate-600'}`}>{sec.label}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Prompt */}
+              {wizardStep === 4 && (
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-600">6. על מה העמוד? (הנחיה ל-AI)</label>
                     <textarea
                       value={servicePrompt}
                       onChange={(e) => setServicePrompt(e.target.value)}
@@ -338,7 +380,7 @@ export function DashboardQuickActions() {
                       ביטול
                     </Button>
                     
-                    {wizardStep < 3 ? (
+                    {wizardStep < 4 ? (
                       <Button 
                         type="button" 
                         onClick={() => {

@@ -100,6 +100,7 @@ const FALLBACK_CONTACT_FORM: FormConfig = {
 };
 
 interface ContactSectionProps {
+  id?: string;
   title?: string;
   subtitle?: string;
   addressLabel?: string;
@@ -114,6 +115,7 @@ interface ContactSectionProps {
 }
 
 export const ContactSection = ({
+  id,
   title = "נשמח לשמוע ממך",
   subtitle = "יש לכם שאלה? צריכים עזרה במשהו? השאירו פרטים ונחזור אליכם בהקדם.",
   addressLabel = "כתובתנו",
@@ -376,7 +378,7 @@ export const ContactSection = ({
   const fieldBgStyle = activeForm.field_bg_color ? { backgroundColor: activeForm.field_bg_color } : undefined;
 
   return (
-    <section className="py-24 px-6 bg-background overflow-hidden" dir="rtl">
+    <section id={id} className="py-24 px-6 bg-background overflow-hidden" dir="rtl">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         whileInView={{ opacity: 1, scale: 1 }}

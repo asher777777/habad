@@ -11,6 +11,7 @@ const LivePostsGrid = dynamic(() => import("@/components/sections/LivePostsGrid"
 const ContactSection = dynamic(() => import("@/components/sections/ContactSection").then(m => m.ContactSection), { ssr: true });
 const LandingSection = dynamic(() => import("@/components/sections/LandingSection").then(m => m.LandingSection), { ssr: true });
 const RichContentSection = dynamic(() => import("@/components/sections/RichContentSection").then(m => m.RichContentSection), { ssr: true });
+const TimerSection = dynamic(() => import("@/components/sections/TimerSection").then(m => m.TimerSection), { ssr: true });
 import { HomePageConfig } from "@/features/home/actions";
 import { GlobalSettings } from "@/features/settings/actions";
 import { Edit3 } from "lucide-react";
@@ -65,6 +66,7 @@ export function HomeClient({ initialConfig, initialGlobalSettings, pageId, colle
       case "hero":
         return (
           <Hero 
+            id={config.hero.anchorId || "hero"}
             title={config.hero.title}
             subtitle={config.hero.subtitle}
             description={config.hero.description}
@@ -73,6 +75,7 @@ export function HomeClient({ initialConfig, initialGlobalSettings, pageId, colle
             buttonsVisible={config.hero.buttonsVisible}
             primaryButton={config.hero.primaryButton}
             secondaryButton={config.hero.secondaryButton}
+            backgroundColor={config.hero.backgroundColor}
             isEditing={false}
           />
         );
@@ -80,6 +83,7 @@ export function HomeClient({ initialConfig, initialGlobalSettings, pageId, colle
         if (!config.mainContent.visible) return null;
         return (
           <Hero 
+            id={config.mainContent.anchorId || "mainContent"}
             title={config.mainContent.title}
             subtitle={config.mainContent.subtitle}
             description={config.mainContent.description}
@@ -88,6 +92,7 @@ export function HomeClient({ initialConfig, initialGlobalSettings, pageId, colle
             buttonsVisible={config.mainContent.buttonsVisible}
             primaryButton={config.mainContent.primaryButton}
             secondaryButton={config.mainContent.secondaryButton}
+            backgroundColor={config.mainContent.backgroundColor}
             isEditing={false}
           />
         );
@@ -95,9 +100,12 @@ export function HomeClient({ initialConfig, initialGlobalSettings, pageId, colle
         if (!config.services.visible) return null;
         return (
           <ServicesGrid 
+            id={config.services.anchorId || "services"}
             title={config.services.title}
             description={config.services.description}
             layout={config.services.layout} 
+            columns={config.services.columns}
+            effect={config.services.effect}
             items={config.services.items} 
             isEditing={false}
           />
@@ -106,6 +114,7 @@ export function HomeClient({ initialConfig, initialGlobalSettings, pageId, colle
         if (!config.community.visible) return null;
         return (
           <CommunitySection 
+            id={config.community.anchorId || "community"}
             title={config.community.title}
             subtitle={config.community.subtitle}
             description={config.community.description}
@@ -123,11 +132,12 @@ export function HomeClient({ initialConfig, initialGlobalSettings, pageId, colle
         );
       case "livePosts":
         if (!config.livePosts.visible) return null;
-        return <LivePostsGrid layout={config.livePosts.layout} customPages={config.livePosts.customPages} />;
+        return <LivePostsGrid id={config.livePosts.anchorId || "livePosts"} layout={config.livePosts.layout} customPages={config.livePosts.customPages} />;
       case "contact":
         if (!config.contact.visible) return null;
         return (
           <ContactSection 
+            id={config.contact.anchorId || "contact"}
             title={config.contact.title}
             subtitle={config.contact.subtitle}
             addressLabel={config.contact.addressLabel}
@@ -139,10 +149,23 @@ export function HomeClient({ initialConfig, initialGlobalSettings, pageId, colle
             form={config.contact.form}
           />
         );
+      case "timer":
+        if (!config.timer || !config.timer.visible) return null;
+        return (
+          <TimerSection
+            id={config.timer.anchorId || "timer"}
+            title={config.timer.title}
+            subtitle={config.timer.subtitle}
+            targetDate={config.timer.targetDate}
+            layout={config.timer.layout}
+            isEditing={false}
+          />
+        );
       case "richContent":
         if (!config.richContent || !config.richContent.visible) return null;
         return (
           <RichContentSection 
+            id={config.richContent.anchorId || "richContent"}
             heading={config.richContent.heading}
             body={config.richContent.body}
             layout={config.richContent.layout}
@@ -153,6 +176,7 @@ export function HomeClient({ initialConfig, initialGlobalSettings, pageId, colle
         if (!config.landingSection || !config.landingSection.visible) return null;
         return (
           <LandingSection
+            id={config.landingSection.anchorId || "landingSection"}
             title={config.landingSection.title}
             subtitle={config.landingSection.subtitle}
             description={config.landingSection.description}
@@ -162,6 +186,8 @@ export function HomeClient({ initialConfig, initialGlobalSettings, pageId, colle
             layout={config.landingSection.layout}
             formMode={config.landingSection.formMode}
             buttonText={config.landingSection.buttonText}
+            backgroundColor={config.landingSection.backgroundColor}
+            backgroundOpacity={config.landingSection.backgroundOpacity}
             isEditing={false}
           />
         );
@@ -194,10 +220,37 @@ export function HomeClient({ initialConfig, initialGlobalSettings, pageId, colle
 
       <main className="flex-grow">
         <div className="flex flex-col w-full">
-          {(config.sectionOrder || ["hero", "mainContent", "services", "community", "livePosts", "richContent", "contact"]).map((sectionId) => {
+          {(config.sectionOrder || ["hero", "mainContent", "services", "community", "livePosts", "timer", "richContent", "contact", "landingSection"]).map((sectionId) => {
             const isHiddenOnMobile = config.mobileHiddenSections?.includes(sectionId);
+            const sectionData = config[sectionId as keyof HomePageConfig] as any;
+            const styleProps = {} as React.CSSProperties;
+            let hasCustomBg = false;
+            let hasCustomHover = false;
+            
+            if (sectionData?.backgroundColor && sectionData.backgroundColor !== "#ffffff" && sectionData.backgroundColor !== "") {
+              (styleProps as any)['--custom-bg'] = sectionData.backgroundColor;
+              hasCustomBg = true;
+            }
+            if (sectionData?.hoverColor && sectionData.hoverColor !== "#f8fafc" && sectionData.hoverColor !== "") {
+              (styleProps as any)['--hover-color'] = sectionData.hoverColor;
+              hasCustomHover = true;
+            }
+
+            let cssRules = "";
+            if (hasCustomBg) {
+              cssRules = `#wrapper-${sectionId} section { background-color: transparent !important; }`;
+            } else if (hasCustomHover) {
+              cssRules = `#wrapper-${sectionId}:hover section { background-color: transparent !important; }`;
+            }
+
             return (
-              <div key={sectionId} className={isHiddenOnMobile ? "max-sm:hidden" : undefined}>
+              <div 
+                key={sectionId} 
+                id={`wrapper-${sectionId}`}
+                className={`transition-colors duration-300 ${hasCustomBg ? 'bg-[var(--custom-bg)]' : ''} ${hasCustomHover ? 'hover:!bg-[var(--hover-color)]' : ''} ${isHiddenOnMobile ? "max-sm:hidden" : ""}`}
+                style={styleProps}
+              >
+                {cssRules ? <style dangerouslySetInnerHTML={{__html: cssRules}} /> : null}
                 {renderSection(sectionId)}
               </div>
             );

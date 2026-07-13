@@ -14,14 +14,14 @@ import {
   Search, 
   Trash2, 
   Save, 
-  Sparkles 
+  Sparkles,
+  Copy
 } from "lucide-react";
 import { 
   getMediaLibrary, 
   addMediaToLibrary, 
   deleteMediaItem, 
   updateMediaMetadata, 
-  updateMediaFile,
   fetchImageAsBase64,
   getMediaFileMetadata
 } from "@/features/media/actions";
@@ -29,9 +29,10 @@ import {
 interface ImageUploadProps {
   onSelect: (url: string) => void;
   currentImage?: string;
+  preserveFormat?: boolean;
 }
 
-export function ImageUpload({ onSelect, currentImage }: ImageUploadProps) {
+export function ImageUpload({ onSelect, currentImage, preserveFormat = false }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [mediaItems, setMediaItems] = useState<any[]>([]);
@@ -45,6 +46,7 @@ export function ImageUpload({ onSelect, currentImage }: ImageUploadProps) {
   const [isUpdatingMetadata, setIsUpdatingMetadata] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizeFormat, setOptimizeFormat] = useState<'webp' | 'png' | 'jpeg'>('webp');
 
   // File size and dimensions states
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
@@ -137,34 +139,43 @@ export function ImageUpload({ onSelect, currentImage }: ImageUploadProps) {
       let extension = file.name.split('.').pop()?.toLowerCase() || '';
 
       if (!isVideo) {
-        // 1. Image Compression & WebP Conversion
-        let maxSizeMB = 0.095; // 97.28 KB (safely below 100 KB)
+        // 1. Image Compression
+        let maxSizeMB = preserveFormat ? 0.25 : 0.095; // Allow larger size for preserved formats like 250KB
         let maxWidthOrHeight = 1920;
+        
+        // Use original file type if preserving format, otherwise WebP
+        const targetFileType = preserveFormat ? file.type : 'image/webp';
+        
         const options = {
           maxSizeMB: maxSizeMB,
           maxWidthOrHeight: maxWidthOrHeight,
           useWebWorker: true,
-          fileType: 'image/webp'
+          fileType: targetFileType
         };
         
         let compressedFile = await imageCompression(file, options);
         
-        // If the resulting file is still larger than 100 KB, try more aggressive compression
-        let attempts = 0;
-        while (compressedFile.size >= 100 * 1024 && attempts < 3) {
-          attempts++;
-          maxWidthOrHeight = Math.floor(maxWidthOrHeight * 0.75);
-          maxSizeMB = maxSizeMB * 0.8;
-          compressedFile = await imageCompression(compressedFile as File, {
-            maxSizeMB: maxSizeMB,
-            maxWidthOrHeight: maxWidthOrHeight,
-            useWebWorker: true,
-            fileType: 'image/webp'
-          });
+        // If not preserving format, try more aggressive compression
+        if (!preserveFormat) {
+          let attempts = 0;
+          while (compressedFile.size >= 100 * 1024 && attempts < 3) {
+            attempts++;
+            maxWidthOrHeight = Math.floor(maxWidthOrHeight * 0.75);
+            maxSizeMB = maxSizeMB * 0.8;
+            compressedFile = await imageCompression(compressedFile as File, {
+              maxSizeMB: maxSizeMB,
+              maxWidthOrHeight: maxWidthOrHeight,
+              useWebWorker: true,
+              fileType: 'image/webp'
+            });
+          }
         }
 
         fileToUpload = compressedFile;
-        extension = 'webp';
+        // If not preserving format, force webp extension
+        if (!preserveFormat) {
+          extension = 'webp';
+        }
       }
       
       // 2. Upload to Firebase Storage
@@ -174,7 +185,7 @@ export function ImageUpload({ onSelect, currentImage }: ImageUploadProps) {
       const url = await getDownloadURL(snapshot.ref);
 
       // 3. Add to Media Library
-      const libraryName = isVideo ? file.name : `${baseName}.webp`;
+      const libraryName = isVideo ? file.name : `${baseName}.${extension}`;
       await addMediaToLibrary(url, libraryName);
       
       // Reload library to show new item and select it
@@ -267,11 +278,14 @@ export function ImageUpload({ onSelect, currentImage }: ImageUploadProps) {
       // 3. Compress using imageCompression
       let maxSizeMB = 0.095;
       let maxWidthOrHeight = 1920;
+      const fileType = `image/${optimizeFormat}`;
+      const extension = optimizeFormat === 'jpeg' ? 'jpg' : optimizeFormat;
+      
       const options = {
         maxSizeMB,
         maxWidthOrHeight,
         useWebWorker: true,
-        fileType: 'image/webp'
+        fileType: fileType
       };
 
       let compressedFile = await imageCompression(file, options);
@@ -285,33 +299,35 @@ export function ImageUpload({ onSelect, currentImage }: ImageUploadProps) {
           maxSizeMB,
           maxWidthOrHeight,
           useWebWorker: true,
-          fileType: 'image/webp'
+          fileType: fileType
         });
       }
 
       // 4. Upload the new file to Firebase Storage
-      const storageRef = ref(storage, `uploads/${Date.now()}_${baseName}.webp`);
+      const storageRef = ref(storage, `uploads/${Date.now()}_${baseName}_optimized.${extension}`);
       const snapshot = await uploadBytes(storageRef, compressedFile);
       const newUrl = await getDownloadURL(snapshot.ref);
 
-      // 5. Update url/name in Firestore
-      const updateRes = await updateMediaFile(selectedItem.id, newUrl, `${baseName}.webp`);
-      if (updateRes.success) {
-        setMediaItems(prev => prev.map(item => {
-          if (item.id === selectedItem.id) {
-            return { ...item, url: newUrl, name: `${baseName}.webp` };
-          }
-          return item;
-        }));
-        setSelectedItem({ ...selectedItem, url: newUrl, name: `${baseName}.webp` });
+      // 5. Add to Firestore as a new media item
+      const newName = `${baseName}_optimized.${extension}`;
+      const addRes = await addMediaToLibrary(newUrl, newName, selectedItem.description || "", selectedItem.alt || "");
+      
+      if (!addRes.error) {
+        // Reload library to show new item and keep it selected?
+        const items = await getMediaLibrary();
+        setMediaItems(items || []);
         
-        // Update size state immediately
-        const newKb = compressedFile.size / 1024;
-        setFileSize(`${newKb.toFixed(1)} KB`);
+        // Find the newly added item to select it
+        const newItem = items?.find(i => i.url === newUrl);
+        if (newItem) {
+          setSelectedItem(newItem);
+          const newKb = compressedFile.size / 1024;
+          setFileSize(`${newKb.toFixed(1)} KB`);
+        }
         
-        alert("הקובץ כווץ והומר ל-WebP בהצלחה!");
+        alert("הקובץ כווץ, הומר והתווסף לגלריה בהצלחה (המקורי נשמר)!");
       } else {
-        alert("העלאה הצליחה אך עדכון בסיס הנתונים נכשל.");
+        alert("העלאה הצליחה אך הוספה לגלריה נכשלה.");
       }
     } catch (e) {
       console.error(e);
@@ -474,6 +490,16 @@ export function ImageUpload({ onSelect, currentImage }: ImageUploadProps) {
                     {dimensions && (
                       <p>מידות: {dimensions.width} × {dimensions.height} פיקסלים</p>
                     )}
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedItem.url);
+                        alert("הקישור הועתק!");
+                      }}
+                      className="text-secondary hover:text-secondary/80 font-semibold flex items-center gap-1 mt-2 transition-colors cursor-pointer"
+                    >
+                      <Copy className="h-3 w-3" />
+                      העתק קישור
+                    </button>
                   </div>
 
                   <hr className="border-slate-100" />
@@ -518,15 +544,28 @@ export function ImageUpload({ onSelect, currentImage }: ImageUploadProps) {
                   <div className="space-y-2">
                     {/* Optimize existing item */}
                     {!isVideoUrl(selectedItem.url) && (
-                      <Button
-                        variant="outline"
-                        onClick={handleOptimizeExistingItem}
-                        disabled={isOptimizing}
-                        className="w-full py-2 flex items-center justify-center gap-2 border-secondary/20 hover:border-secondary/50 text-secondary hover:bg-secondary/5 rounded-lg text-sm font-semibold cursor-pointer"
-                      >
-                        {isOptimizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                        {isOptimizing ? 'מבצע אופטימיזציה...' : 'בצע אופטימיזציה וכיווץ'}
-                      </Button>
+                      <div className="space-y-2 border p-3 rounded-lg bg-white shadow-sm">
+                        <label className="text-xs font-bold text-slate-700 mb-1 block">בחר פורמט המרה וכיווץ:</label>
+                        <select 
+                          value={optimizeFormat} 
+                          onChange={(e) => setOptimizeFormat(e.target.value as any)}
+                          className="w-full text-sm p-2 rounded-md border outline-none focus:border-secondary mb-2 bg-slate-50"
+                        >
+                          <option value="webp">WebP (מומלץ למהירות)</option>
+                          <option value="jpeg">JPG (איכותי וסטנדרטי)</option>
+                          <option value="png">PNG (שומר על רקע שקוף)</option>
+                        </select>
+
+                        <Button
+                          variant="outline"
+                          onClick={handleOptimizeExistingItem}
+                          disabled={isOptimizing}
+                          className="w-full py-2 flex items-center justify-center gap-2 border-secondary/20 hover:border-secondary/50 text-secondary hover:bg-secondary/5 rounded-lg text-sm font-semibold cursor-pointer"
+                        >
+                          {isOptimizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                          {isOptimizing ? 'מבצע אופטימיזציה...' : 'בצע אופטימיזציה וכיווץ'}
+                        </Button>
+                      </div>
                     )}
 
                     <Button

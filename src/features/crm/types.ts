@@ -1,3 +1,10 @@
+export interface CustomField {
+  id: string;
+  category: "details" | "camp" | "tags" | "company" | "events";
+  type: string; // text, date, number, etc.
+  label: string;
+}
+
 export interface ContactEvent {
   time: string;
   title: string;
@@ -8,6 +15,18 @@ export interface FormSubmission {
   name: string;
   page: string;
   date: string;
+}
+
+export interface ChildData {
+  id: string; // Unique ID for repeating list
+  first_name?: string;
+  last_name?: string;
+  grade?: string;
+  id_number?: string;
+  allergies_has?: string;
+  allergies_details?: string;
+  health_declaration?: string;
+  [key: string]: any;
 }
 
 export interface Contact {
@@ -58,6 +77,7 @@ export interface Contact {
   last_order_date?: string;
 
   // Camp / Family Fields
+  children?: ChildData[];
   child_first_name?: string;
   child_last_name?: string;
   child_grade?: string;
@@ -72,4 +92,7 @@ export interface Contact {
   // Timestamps
   createdAt?: string;
   updatedAt?: string;
+
+  // Dynamic custom fields
+  [key: string]: any;
 }

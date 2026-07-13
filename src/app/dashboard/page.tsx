@@ -100,8 +100,8 @@ export default async function DashboardPage() {
 
         {services.length > 0 ? (
           <div className="divide-y border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm">
-            {services.slice(0, 5).map((service) => (
-              <div key={service.slug} className="p-3 md:p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+            {services.slice(0, 5).map((service, index) => (
+              <div key={`${service.slug}-${index}`} className="p-3 md:p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
                 <div className="flex-1 text-right">
                   <p className="font-bold text-slate-800 text-xs md:text-sm">{service.hero?.title || service.slug}</p>
                   <p className="text-[10px] font-mono text-slate-400 mt-0.5" dir="ltr">/service/{service.slug}</p>

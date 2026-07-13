@@ -10,12 +10,15 @@ interface NedarimCheckoutProps {
   phone: string;
   mail: string;
   receiptType?: string;
+  requireZehut?: boolean;
   isRecurring?: boolean;
+  installments?: number;
+  onMethodSelected?: (method: "credit" | "bit" | null) => void;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function NedarimCheckout({ amount, clientName, phone, mail, receiptType, isRecurring, onSuccess, onCancel }: NedarimCheckoutProps) {
+export function NedarimCheckout({ amount, clientName, phone, mail, receiptType, requireZehut, isRecurring, installments, onMethodSelected, onSuccess, onCancel }: NedarimCheckoutProps) {
   const [paymentMethod, setPaymentMethod] = useState<"credit" | "bit" | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -28,7 +31,7 @@ export function NedarimCheckout({ amount, clientName, phone, mail, receiptType, 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.Name === "Height") {
         const frame = document.getElementById("NedarimFrame") as HTMLIFrameElement;
-        if (frame) frame.style.height = (parseInt(event.data.Value) + 15) + "px";
+        if (frame) frame.style.height = (parseInt(event.data.Value) + 80) + "px";
       } else if (event.data?.Name === "TransactionResponse") {
         if (event.data.Value?.Status === "Error") {
           setError(event.data.Value.Message || "שגיאה בתשלום");
@@ -85,18 +88,22 @@ export function NedarimCheckout({ amount, clientName, phone, mail, receiptType, 
         mail,
         receiptType,
         isRecurring,
+        installments,
         redirectUrl: window.location.origin + "/donate?success=true",
       });
 
       if (data.Status === "Error") {
         setError(data.Message);
         setPaymentMethod(null);
+        if (onMethodSelected) onMethodSelected(null);
       } else {
         setTransactionData(data);
+        if (onMethodSelected) onMethodSelected(type);
       }
     } catch (e: any) {
       setError(e.message || "שגיאה ביצירת העסקה");
       setPaymentMethod(null);
+      if (onMethodSelected) onMethodSelected(null);
     }
     setLoading(false);
   };
@@ -112,11 +119,13 @@ export function NedarimCheckout({ amount, clientName, phone, mail, receiptType, 
   };
 
   if (!paymentMethod) {
+    const showBit = !isRecurring && (!installments || installments <= 1);
+    
     return (
       <div className="space-y-4">
         {error && <div className="p-4 bg-red-100 text-red-700 rounded-lg font-bold animate-in fade-in">{error}</div>}
         <h3 className="text-xl font-bold text-center mb-6 text-slate-800">בחר שיטת תשלום</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className={`grid gap-4 ${showBit ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <button 
             onClick={() => initTransaction("credit")}
             className="flex flex-col items-center justify-center p-6 border-2 rounded-2xl hover:border-primary/50 transition-colors bg-white hover:bg-muted/10 text-slate-800"
@@ -124,13 +133,15 @@ export function NedarimCheckout({ amount, clientName, phone, mail, receiptType, 
             <span className="text-3xl mb-2">💳</span>
             <span className="font-semibold">כרטיס אשראי</span>
           </button>
-          <button 
-            onClick={() => initTransaction("bit")}
-            className="flex flex-col items-center justify-center p-6 border-2 rounded-2xl hover:border-primary/50 transition-colors bg-white hover:bg-muted/10 text-slate-800"
-          >
-            <span className="text-3xl mb-2">📱</span>
-            <span className="font-semibold">Bit</span>
-          </button>
+          {showBit && (
+            <button 
+              onClick={() => initTransaction("bit")}
+              className="flex flex-col items-center justify-center p-6 border-2 rounded-2xl hover:border-primary/50 transition-colors bg-white hover:bg-muted/10 text-slate-800"
+            >
+              <span className="text-3xl mb-2">📱</span>
+              <span className="font-semibold">Bit</span>
+            </button>
+          )}
         </div>
         <Button variant="ghost" className="w-full mt-4 text-slate-600 hover:text-slate-800" onClick={onCancel}>חזור</Button>
       </div>
@@ -149,8 +160,8 @@ export function NedarimCheckout({ amount, clientName, phone, mail, receiptType, 
         <div className="max-w-[380px] mx-auto bg-muted/20 p-4 rounded-xl">
           <iframe 
             id="NedarimFrame" 
-            src={`https://matara.pro/nedarimplus/iframe?language=he&MaxPayments=1&NeedZeout=${transactionData.NeedZeout || 0}`}
-            className="w-full border-0 transition-all duration-300 min-h-[50px]"
+            src={`https://matara.pro/nedarimplus/iframe?language=he${(isRecurring || (installments !== undefined && installments > 1)) ? "" : "&MaxPayments=1"}&NeedZeout=${(requireZehut || receiptType === "405") ? 1 : (transactionData.NeedZeout || 0)}`}
+            className="w-full border-0 transition-all duration-300 min-h-[350px]"
             scrolling="no"
           />
           <Button 
@@ -180,10 +191,10 @@ export function NedarimCheckout({ amount, clientName, phone, mail, receiptType, 
       )}
 
       {!loading && paymentMethod === "credit" && (
-        <Button variant="ghost" className="w-full" onClick={() => setPaymentMethod(null)}>החלף שיטת תשלום</Button>
+        <Button variant="ghost" className="w-full" onClick={() => { setPaymentMethod(null); if (onMethodSelected) onMethodSelected(null); }}>החלף שיטת תשלום</Button>
       )}
       {paymentMethod === "bit" && (
-        <Button variant="ghost" className="w-full mt-2" onClick={() => setPaymentMethod(null)}>חזור</Button>
+        <Button variant="ghost" className="w-full mt-2" onClick={() => { setPaymentMethod(null); if (onMethodSelected) onMethodSelected(null); }}>חזור</Button>
       )}
     </div>
   );

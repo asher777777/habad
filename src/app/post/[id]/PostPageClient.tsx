@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { savePost } from "@/features/posts/actions";
 import { generateHeroImageWithAI } from "@/features/services/actions";
 import { ImageUpload } from "@/components/ui/ImageUpload";
+import { CRMFormRenderer } from "@/features/crm/components/CRMFormRenderer";
 export function PostPageClient({ initialData, id }: { initialData: any, id: string }) {
   const [isEditing, setIsEditing] = useState(false);
   const [post, setPost] = useState(initialData);
@@ -322,6 +323,17 @@ export function PostPageClient({ initialData, id }: { initialData: any, id: stri
                 )}
               </div>
             </div>
+
+            {/* Embedded Form Template */}
+            {!isEditing && post.formConfig && post.formConfig.enabled && (
+              <div className="border-t bg-slate-50/50 p-6 sm:p-8">
+                <CRMFormRenderer 
+                  config={post.formConfig}
+                  formId={id}
+                  formTitle={post.title}
+                />
+              </div>
+            )}
 
             {/* Public sharing callout */}
             {!isEditing && (

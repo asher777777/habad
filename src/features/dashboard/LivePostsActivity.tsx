@@ -23,6 +23,7 @@ import {
   generatePostWithAI,
   LivePost 
 } from "@/features/posts/actions";
+import { getFormTemplates, FormTemplate } from "@/features/crm/formTemplates";
 import { Button } from "@/components/ui/Button";
 import { StatBadge } from "@/components/ui/StatBadge";
 
@@ -35,6 +36,8 @@ export function LivePostsActivity() {
   const [activeTab, setActiveTab] = useState<"all" | "published" | "drafts">("all");
   const [selectedPost, setSelectedPost] = useState<LivePost | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error", message: string } | null>(null);
+  const [templates, setTemplates] = useState<FormTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -55,6 +58,8 @@ export function LivePostsActivity() {
     async function load() {
       const data = await getAllPosts();
       setPosts(data);
+      const temps = await getFormTemplates();
+      setTemplates(temps);
       setIsLoading(false);
     }
     load();
@@ -81,7 +86,8 @@ export function LivePostsActivity() {
 
     setIsGenerating(true);
     try {
-      const res = await generatePostWithAI(prompt);
+      const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+      const res = await generatePostWithAI(prompt, selectedTemplate?.config);
       if (res.success && res.post) {
         setPosts(prev => [res.post!, ...prev]);
         setPrompt("");
@@ -232,6 +238,20 @@ export function LivePostsActivity() {
           </div>
 
           <form onSubmit={handleGenerate} className="space-y-3">
+            {templates.length > 0 && (
+              <div className="w-full sm:w-1/2">
+                <select 
+                  value={selectedTemplateId} 
+                  onChange={(e) => setSelectedTemplateId(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs text-white outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                >
+                  <option value="" className="text-slate-800">-- ללא טופס מוצמד --</option>
+                  {templates.map(t => (
+                    <option key={t.id} value={t.id!} className="text-slate-800">{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="relative">
               <textarea
                 ref={textareaRef}

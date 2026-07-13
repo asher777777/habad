@@ -1,17 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Plus, Trash2, Settings, Check, Sparkles, 
-  Settings2, MoveUp, MoveDown, Clock, Coins
+  Settings2, MoveUp, MoveDown, Clock, Coins, Save, Download
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ImageUpload } from "@/components/ui/ImageUpload";
+import { getCustomFields, addCustomField, getFormTemplates, saveFormTemplate, deleteFormTemplate } from "@/features/crm/actions";
+import { Modal } from "@/components/ui/Modal";
 
 export interface FormField {
   label: string;
   type: string; // text, tel, email, textarea, select, number, fixed_amount, hidden
   map_to: string;
+  map_to_2?: string;
   required: boolean;
   default_value: string;
   options: string;
@@ -22,6 +25,11 @@ export interface FormField {
   cond_operator: string; // is, is_not
   cond_value: string;
   step?: number;
+  calc_formula?: string;
+  icon?: string;
+  widthPercentage?: number;
+  placeholder?: string;
+  custom_setup_enable?: boolean;
 }
 
 export interface FormConfig {
@@ -49,6 +57,7 @@ export interface FormConfig {
   payment_zeut_kupa: string;
   payment_receipt_type: string;
   payment_frequency: "one-time" | "recurring" | "user-choice";
+  payment_require_zehut?: boolean;
 }
 
 interface CRMFormBuilderProps {
@@ -76,16 +85,34 @@ const CRM_DB_FIELDS = {
   "tg2": "תג 2",
   "tg3": "תג 3",
   "payment_amount": "סכום לתשלום (עבור טופס תשלום)",
+  "payment_monthly_amount": "סכום חודשי (סכום לתשלום יוכפל במספר התשלומים)",
+  "payment_is_recurring": "תדירות התרומה (הוראת קבע)",
+  "payer_id": "תעודת זהות (עבור נדרים פלוס)",
+  "child_first_name": "שם הילד (פרטי)",
+  "child_last_name": "שם הילד (משפחה)",
+  "child_grade": "כיתה / גן",
+  "child_id_number": "תעודת זהות ילד",
+  "allergies_has": "יש אלרגיות? (כן/לא)",
+  "allergies_details": "פירוט אלרגיות",
+  "father_name": "שם האב",
+  "father_phone": "טלפון האב",
+  "mother_name": "שם האם",
+  "mother_phone": "טלפון האם",
+  "total_spent": "סך הכל תרומות/רכישות",
+  "order_count": "מספר תרומות/רכישות",
+  "payment_installments": "מספר תשלומים (0 = ללא הגבלה)"
 };
 
 const FIELD_TYPES = [
   { id: "text", label: "טקסט חופשי" },
   { id: "tel", label: "טלפון נייד" },
   { id: "email", label: "כתובת אימייל" },
+  { id: "date", label: "תאריך" },
   { id: "textarea", label: "אזור טקסט ארוך" },
   { id: "select", label: "בחירה מרשימה (Dropdown)" },
   { id: "number", label: "מספר (סכום להזנה)" },
   { id: "fixed_amount", label: "סכום קבוע" },
+  { id: "recurring_toggle", label: "מתג הוראת קבע (הפוך לתרומה חודשית קבועה)" },
   { id: "hidden", label: "שדה מוסתר" }
 ];
 
@@ -93,14 +120,73 @@ export function CRMFormBuilder({ value: rawValue, onChange }: CRMFormBuilderProp
   const value = { ...rawValue, fields: rawValue.fields || [] };
   const [activeTab, setActiveTab] = useState<"fields" | "whatsapp" | "settings">("fields");
   const [expandedField, setExpandedField] = useState<number | null>(null);
+  const [customFields, setCustomFields] = useState<any[]>([]);
+  const [isCrmModalOpen, setIsCrmModalOpen] = useState(false);
+  const [newCrmFieldLabel, setNewCrmFieldLabel] = useState("");
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isSaveTemplateModalOpen, setIsSaveTemplateModalOpen] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+
+  useEffect(() => {
+    getCustomFields().then(setCustomFields);
+    getFormTemplates().then(setTemplates);
+  }, []);
+
+  const dynamicCrmDbFields = {
+    ...CRM_DB_FIELDS,
+    ...customFields.reduce((acc, field) => {
+      acc[field.id] = `${field.label} (שדה מותאם)`;
+      return acc;
+    }, {} as Record<string, string>)
+  } as Record<string, string>;
   
   const updateConfig = (updates: Partial<FormConfig>) => {
     onChange({ ...value, ...updates });
   };
 
+  const handleSaveTemplate = async () => {
+    if (!newTemplateName.trim()) return;
+    setIsSavingTemplate(true);
+    const result = await saveFormTemplate(newTemplateName, value);
+    if (result.success && result.template) {
+      setTemplates([...templates, result.template]);
+      setNewTemplateName("");
+      setIsSaveTemplateModalOpen(false);
+      alert("התבנית נשמרה בהצלחה!");
+    } else {
+      alert("שגיאה בשמירת התבנית");
+    }
+    setIsSavingTemplate(false);
+  };
+
+  const handleLoadTemplate = (templateConfig: any) => {
+    if (window.confirm("האם אתה בטוח שברצונך לטעון תבנית זו? פעולה זו תדרוס את הטופס הנוכחי.")) {
+      onChange({ ...templateConfig, enabled: value.enabled });
+      setIsTemplateModalOpen(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    if (window.confirm("האם אתה בטוח שברצונך למחוק תבנית זו?")) {
+      const result = await deleteFormTemplate(id);
+      if (result.success) {
+        setTemplates(templates.filter(t => t.id !== id));
+      }
+    }
+  };
+
   const handleFieldChange = (index: number, updates: Partial<FormField>) => {
     const newFields = [...value.fields];
-    newFields[index] = { ...newFields[index], ...updates };
+    let merged = { ...newFields[index], ...updates };
+    if (updates.type === "recurring_toggle") {
+      merged.map_to = "payment_is_recurring";
+      if (!newFields[index].label || newFields[index].label.startsWith("שדה חדש")) {
+        merged.label = "הפוך לתרומה חודשית קבועה";
+      }
+    }
+    newFields[index] = merged;
     updateConfig({ fields: newFields });
   };
 
@@ -160,10 +246,8 @@ export function CRMFormBuilder({ value: rawValue, onChange }: CRMFormBuilderProp
     }, 50);
   };
 
-  // Get options for conditional selection (only select fields)
-  const selectFields = (value.fields || [])
-    .map((f, i) => ({ label: f.label, index: i, type: f.type }))
-    .filter(f => f.type === "select");
+  const allFieldsForCond = (value.fields || [])
+    .map((f, i) => ({ label: f.label, index: i, type: f.type, options: f.options }));
 
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-6 space-y-6 text-right text-slate-800" dir="rtl">
@@ -177,6 +261,24 @@ export function CRMFormBuilder({ value: rawValue, onChange }: CRMFormBuilderProp
           <p className="text-xs text-muted-foreground mt-1">
             עצב טפסים חכמים, סנכרן נתונים ל-CRM והגדר הודעות וואטסאפ אוטומטיות ללידים.
           </p>
+          <div className="flex gap-2 mt-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsTemplateModalOpen(true)}
+              className="text-xs h-8 gap-1 rounded-xl"
+            >
+              <Download className="w-3.5 h-3.5" /> טען מתבנית
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsSaveTemplateModalOpen(true)}
+              className="text-xs h-8 gap-1 rounded-xl"
+            >
+              <Save className="w-3.5 h-3.5" /> שמור כתבנית
+            </Button>
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-full border shadow-sm">
@@ -339,15 +441,30 @@ export function CRMFormBuilder({ value: rawValue, onChange }: CRMFormBuilderProp
                             </div>
                             <div>
                               <label className="block font-semibold mb-1 text-slate-650">מיפוי לשדה CRM</label>
-                              <select
-                                value={field.map_to}
-                                onChange={(e) => handleFieldChange(idx, { map_to: e.target.value })}
-                                className="w-full bg-white text-slate-800 border rounded-xl p-2.5 outline-none"
-                              >
-                                {Object.entries(CRM_DB_FIELDS).map(([k, v]) => (
-                                  <option key={k} value={k}>{v}</option>
-                                ))}
-                              </select>
+                              <div className="flex gap-1.5 items-center">
+                                <div className="flex-1">
+                                  <select
+                                    value={field.map_to || ""}
+                                    onChange={(e) => {
+                                      handleFieldChange(idx, { map_to: e.target.value });
+                                    }}
+                                    className="w-full bg-white text-slate-800 border rounded-xl p-2.5 outline-none text-xs font-semibold"
+                                  >
+                                    {Object.entries(dynamicCrmDbFields).map(([k, v]) => (
+                                      <option key={k} value={k}>{v}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <Button
+                                  type="button"
+                                  onClick={() => setIsCrmModalOpen(true)}
+                                  variant="outline"
+                                  className="p-2.5 rounded-xl border border-slate-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
+                                  title="צור שדה מותאם חדש ב-CRM"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
                             </div>
                             <div className="flex items-center gap-2 pt-6">
                               <input
@@ -372,7 +489,63 @@ export function CRMFormBuilder({ value: rawValue, onChange }: CRMFormBuilderProp
                                 className="w-full bg-white text-slate-800 border rounded-xl p-2.5 outline-none"
                               />
                             </div>
+                            <div>
+                              <label className="block font-semibold mb-1 text-slate-650">רוחב השדה בבלוק</label>
+                              <select
+                                value={field.widthPercentage || 100}
+                                onChange={(e) => handleFieldChange(idx, { widthPercentage: parseInt(e.target.value) || 100 })}
+                                className="w-full bg-white text-slate-800 border rounded-xl p-2.5 outline-none font-bold"
+                              >
+                                <option value={100}>100% (שורה מלאה)</option>
+                                <option value={50}>50% (חצי שורה)</option>
+                                <option value={33}>33% (שליש שורה)</option>
+                                <option value={25}>25% (רבע שורה)</option>
+                              </select>
+                            </div>
                           </div>
+
+                          {/* Custom setup switcher (placeholder & default value) */}
+                          {!["hidden", "fixed_amount", "recurring_toggle"].includes(field.type) && (
+                            <div className="border-t pt-3 space-y-3">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  id={`field-custom-setup-${idx}`}
+                                  type="checkbox"
+                                  checked={field.custom_setup_enable || false}
+                                  onChange={(e) => handleFieldChange(idx, { custom_setup_enable: e.target.checked })}
+                                  className="w-4 h-4 text-indigo-650 rounded border-slate-350"
+                                />
+                                <label htmlFor={`field-custom-setup-${idx}`} className="font-bold text-slate-650 cursor-pointer">
+                                  הגדרת ערך ברירת מחדל ופלייסהולדר?
+                                </label>
+                              </div>
+                              {field.custom_setup_enable && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-200">
+                                  <div>
+                                    <label className="block font-semibold mb-1 text-slate-650">ערך ברירת מחדל</label>
+                                    <input
+                                      type="text"
+                                      value={field.default_value || ""}
+                                      onChange={(e) => handleFieldChange(idx, { default_value: e.target.value })}
+                                      className="w-full bg-white text-slate-800 border rounded-xl p-2.5 outline-none text-xs"
+                                      placeholder="הזן ערך ברירת מחדל"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block font-semibold mb-1 text-slate-650">פלייסהולדר (Placeholder)</label>
+                                    <input
+                                      type="text"
+                                      value={field.placeholder || ""}
+                                      onChange={(e) => handleFieldChange(idx, { placeholder: e.target.value })}
+                                      className="w-full bg-white text-slate-800 border rounded-xl p-2.5 outline-none text-xs"
+                                      placeholder="הזן טקסט פלייסהולדר"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
 
                           {field.type === "select" && (
                             <div>
@@ -452,7 +625,7 @@ export function CRMFormBuilder({ value: rawValue, onChange }: CRMFormBuilderProp
                                   className="bg-white text-slate-800 border rounded-xl p-2 outline-none min-w-[120px]"
                                 >
                                   <option value="">בחר שדה...</option>
-                                  {selectFields
+                                  {allFieldsForCond
                                     .filter(f => f.index !== idx)
                                     .map(f => (
                                       <option key={f.index} value={f.index}>{f.label}</option>
@@ -673,6 +846,17 @@ export function CRMFormBuilder({ value: rawValue, onChange }: CRMFormBuilderProp
                       </p>
                     </div>
                     <div>
+                      <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-650 mt-1 mt-6">
+                        <input
+                          type="checkbox"
+                          checked={value.payment_require_zehut || false}
+                          onChange={(e) => updateConfig({ payment_require_zehut: e.target.checked })}
+                          className="w-4 h-4 text-indigo-650 rounded border-slate-350"
+                        />
+                        דרוש שדה תעודת זהות (Zehut) סמוך לפרטי האשראי
+                      </label>
+                    </div>
+                    <div>
                       <label className="block font-semibold mb-1 text-slate-650">תדירות התרומה (הוראת קבע)</label>
                       <select
                         value={value.payment_frequency || "one-time"}
@@ -764,7 +948,7 @@ export function CRMFormBuilder({ value: rawValue, onChange }: CRMFormBuilderProp
                     <label className="block font-semibold mb-1 text-slate-650">טקסט כפתור שליחה</label>
                     <input
                       type="text"
-                      value={value.submit_button_text}
+                      value={value.submit_button_text || ""}
                       onChange={(e) => updateConfig({ submit_button_text: e.target.value })}
                       className="w-full bg-slate-50 text-slate-800 border rounded-xl p-2.5 outline-none font-bold"
                       placeholder="המשך לתשלום מאובטח"
@@ -776,7 +960,7 @@ export function CRMFormBuilder({ value: rawValue, onChange }: CRMFormBuilderProp
                       <div className="flex gap-2 items-center">
                         <input
                           type="color"
-                          value={value.submit_button_bg_color}
+                          value={value.submit_button_bg_color || "#000000"}
                           onChange={(e) => updateConfig({ submit_button_bg_color: e.target.value })}
                           className="w-10 h-10 border rounded-xl cursor-pointer p-0.5"
                         />
@@ -788,7 +972,7 @@ export function CRMFormBuilder({ value: rawValue, onChange }: CRMFormBuilderProp
                       <div className="flex gap-2 items-center">
                         <input
                           type="color"
-                          value={value.submit_button_text_color}
+                          value={value.submit_button_text_color || "#ffffff"}
                           onChange={(e) => updateConfig({ submit_button_text_color: e.target.value })}
                           className="w-10 h-10 border rounded-xl cursor-pointer p-0.5"
                         />
@@ -844,6 +1028,143 @@ export function CRMFormBuilder({ value: rawValue, onChange }: CRMFormBuilderProp
           )}
         </div>
       )}
+      {/* Modal for adding custom CRM field */}
+      <Modal isOpen={isCrmModalOpen} onClose={() => setIsCrmModalOpen(false)}>
+        <Modal.Content className="text-right font-sans">
+          <Modal.Header title="הוספת שדה מותאם אישית חדש ל-CRM" description="הזן את שם השדה שברצונך להוסיף למסד הנתונים של אנשי הקשר." />
+          <div className="space-y-4 py-4 text-xs">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-650">שם השדה (תווית)</label>
+              <input
+                type="text"
+                value={newCrmFieldLabel}
+                onChange={(e) => setNewCrmFieldLabel(e.target.value)}
+                placeholder="למשל: מידת חולצה, שם מוסד"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none"
+              />
+            </div>
+          </div>
+          <Modal.Footer>
+            <div className="flex gap-2 justify-end w-full">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsCrmModalOpen(false);
+                  setNewCrmFieldLabel("");
+                }}
+                className="rounded-xl"
+              >
+                ביטול
+              </Button>
+              <Button
+                type="button"
+                onClick={async () => {
+                  if (!newCrmFieldLabel.trim()) return;
+                  const res = await addCustomField({
+                    label: newCrmFieldLabel.trim(),
+                    category: "details",
+                    type: "text"
+                  });
+                  if (res.success && res.field) {
+                    setCustomFields(prev => [...prev, res.field]);
+                    setIsCrmModalOpen(false);
+                    setNewCrmFieldLabel("");
+                  } else {
+                    alert("שגיאה בהוספת השדה: " + res.error);
+                  }
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl"
+              >
+                הוסף שדה
+              </Button>
+            </div>
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal>
+
+      {/* Load Template Modal */}
+      <Modal isOpen={isTemplateModalOpen} onClose={() => setIsTemplateModalOpen(false)}>
+        <Modal.Content className="text-right font-sans">
+          <Modal.Header title="טעינת טופס מתבנית" description="בחר תבנית שמורה לטעינה. שים לב: טעינת תבנית תדרוס את הטופס הנוכחי." />
+          <div className="space-y-3 py-4 text-xs max-h-[60vh] overflow-y-auto">
+            {templates.length === 0 ? (
+              <div className="text-center text-slate-500 py-8">אין תבניות שמורות.</div>
+            ) : (
+              templates.map(tpl => (
+                <div key={tpl.id} className="flex items-center justify-between p-3 bg-slate-50 border rounded-xl">
+                  <div>
+                    <div className="font-bold text-slate-800">{tpl.name}</div>
+                    <div className="text-slate-500 text-[10px]">{new Date(tpl.createdAt).toLocaleDateString("he-IL")}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleLoadTemplate(tpl.config)}
+                      className="h-8 rounded-xl"
+                    >
+                      טען תבנית
+                    </Button>
+                    <Button 
+                      type="button"
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleDeleteTemplate(tpl.id)}
+                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 rounded-xl"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </Modal.Content>
+      </Modal>
+
+      {/* Save Template Modal */}
+      <Modal isOpen={isSaveTemplateModalOpen} onClose={() => setIsSaveTemplateModalOpen(false)}>
+        <Modal.Content className="text-right font-sans">
+          <Modal.Header title="שמירת טופס כתבנית" description="שמור את הגדרות הטופס הנוכחי לשימוש חוזר בעתיד." />
+          <div className="space-y-4 py-4 text-xs">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-650">שם התבנית</label>
+              <input
+                type="text"
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+                placeholder="למשל: טופס רישום לקייטנה תשפד"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none"
+              />
+            </div>
+          </div>
+          <Modal.Footer>
+            <div className="flex gap-2 justify-end w-full">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsSaveTemplateModalOpen(false);
+                  setNewTemplateName("");
+                }}
+                className="rounded-xl"
+              >
+                ביטול
+              </Button>
+              <Button
+                type="button"
+                disabled={isSavingTemplate || !newTemplateName.trim()}
+                onClick={handleSaveTemplate}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl"
+              >
+                {isSavingTemplate ? "שומר..." : "שמור תבנית"}
+              </Button>
+            </div>
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal>
     </div>
   );
 }

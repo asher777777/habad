@@ -9,11 +9,12 @@ import { getAllPosts } from "@/features/posts/actions";
 import { getAllSitePages } from "@/features/home/actions";
 
 interface LivePostsGridProps {
+  id?: string;
   layout?: "grid" | "carousel" | "list" | "bento";
   customPages?: string[];
 }
 
-export function LivePostsGrid({ layout = "grid", customPages }: LivePostsGridProps) {
+export function LivePostsGrid({ id, layout = "grid", customPages }: LivePostsGridProps) {
   const [displayItems, setDisplayItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -88,7 +89,7 @@ export function LivePostsGrid({ layout = "grid", customPages }: LivePostsGridPro
   }
 
   return (
-    <section className="py-24 bg-gradient-to-b from-[#fafbfc] to-white relative overflow-hidden" dir="rtl">
+    <section id={id} className="py-24 bg-gradient-to-b from-[#fafbfc] to-white relative overflow-hidden" dir="rtl">
       {/* Decorative ambient gradients */}
       <div className="absolute right-0 top-1/4 w-[350px] h-[350px] bg-primary/5 rounded-full blur-[80px] pointer-events-none" />
       <div className="absolute left-0 bottom-1/4 w-[300px] h-[300px] bg-secondary/5 rounded-full blur-[70px] pointer-events-none" />

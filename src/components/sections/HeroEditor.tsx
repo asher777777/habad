@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { generateHeroImageWithAI } from "@/features/services/actions";
 import { Button } from "@/components/ui/Button";
 import { Sparkles, Wand2, Loader2, Image as ImageIcon } from "lucide-react";
+import { getAllSitePages } from "@/features/home/actions";
 
 interface HeroEditorProps {
   imageSrc?: string;
   buttonsVisible?: boolean;
   primaryButton?: { text: string; link: string };
   secondaryButton?: { text: string; link: string };
+  availableAnchors?: { id: string, label: string }[];
   onUpdateHero: (field: "title" | "subtitle" | "description" | "imageSrc" | "buttonsVisible" | "primaryButton" | "secondaryButton", value: any) => void;
 }
 
@@ -19,8 +21,14 @@ export function HeroEditor({
   buttonsVisible = true,
   primaryButton = { text: "בדיקת תפילין ומזוזות", link: "/services" },
   secondaryButton = { text: "זמני שבת וחגים", link: "/shabbat" },
+  availableAnchors = [],
   onUpdateHero
 }: HeroEditorProps) {
+  const [sitePages, setSitePages] = useState<any[]>([]);
+
+  useEffect(() => {
+    getAllSitePages().then(setSitePages);
+  }, []);
   const [aiPrompt, setAiPrompt] = useState("");
   const [generatingImage, setGeneratingImage] = useState(false);
   const [aiError, setAiError] = useState("");
@@ -119,16 +127,70 @@ export function HeroEditor({
             <div className="space-y-3">
               <div className="space-y-1">
                 <label className="text-[10px] text-slate-500 font-medium">כפתור ראשי (טקסט וקישור)</label>
-                <div className="flex gap-2">
-                  <input type="text" value={primaryButton.text} onChange={(e) => handleUpdate("primaryButton", { ...primaryButton, text: e.target.value })} className="w-1/2 text-xs border rounded p-1" placeholder="טקסט" />
-                  <input type="text" value={primaryButton.link} onChange={(e) => handleUpdate("primaryButton", { ...primaryButton, link: e.target.value })} className="w-1/2 text-xs border rounded p-1 text-left" dir="ltr" placeholder="/link" />
+                <div className="flex flex-col gap-2">
+                  <input type="text" value={primaryButton.text} onChange={(e) => handleUpdate("primaryButton", { ...primaryButton, text: e.target.value })} className="w-full text-xs border rounded p-1" placeholder="טקסט הלחצן" />
+                  
+                  <select
+                    value={primaryButton.link}
+                    onChange={(e) => handleUpdate("primaryButton", { ...primaryButton, link: e.target.value })}
+                    className="w-full text-xs border rounded p-1 bg-white focus:outline-none focus:border-purple-400 font-medium cursor-pointer"
+                  >
+                    <optgroup label="עמודים">
+                      <option value="/">עמוד הבית (בית)</option>
+                      {sitePages.map((page, idx) => (
+                        <option key={`${page.id}-${idx}`} value={page.url}>{page.title}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="עוגנים בעמוד הבית">
+                      {availableAnchors.map(anchor => (
+                        <option key={anchor.id} value={`/#${anchor.id}`}>{anchor.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="אחר">
+                      {!sitePages.some(p => p.url === primaryButton.link) && !availableAnchors.some(a => `/#${a.id}` === primaryButton.link) && primaryButton.link !== "/" && (
+                        <option value={primaryButton.link}>קישור מותאם: {primaryButton.link}</option>
+                      )}
+                      <option value="/custom">-- הגדר קישור ידנית --</option>
+                    </optgroup>
+                  </select>
+                  
+                  {(primaryButton.link === "/custom" || (!sitePages.some(p => p.url === primaryButton.link) && !availableAnchors.some(a => `/#${a.id}` === primaryButton.link) && primaryButton.link !== "/")) && (
+                    <input type="text" value={primaryButton.link === "/custom" ? "" : primaryButton.link} onChange={(e) => handleUpdate("primaryButton", { ...primaryButton, link: e.target.value })} className="w-full text-xs border rounded p-1 text-left" dir="ltr" placeholder="/link" />
+                  )}
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] text-slate-500 font-medium">כפתור משני (טקסט וקישור)</label>
-                <div className="flex gap-2">
-                  <input type="text" value={secondaryButton.text} onChange={(e) => handleUpdate("secondaryButton", { ...secondaryButton, text: e.target.value })} className="w-1/2 text-xs border rounded p-1" placeholder="טקסט" />
-                  <input type="text" value={secondaryButton.link} onChange={(e) => handleUpdate("secondaryButton", { ...secondaryButton, link: e.target.value })} className="w-1/2 text-xs border rounded p-1 text-left" dir="ltr" placeholder="/link" />
+                <div className="flex flex-col gap-2">
+                  <input type="text" value={secondaryButton.text} onChange={(e) => handleUpdate("secondaryButton", { ...secondaryButton, text: e.target.value })} className="w-full text-xs border rounded p-1" placeholder="טקסט הלחצן" />
+                  
+                  <select
+                    value={secondaryButton.link}
+                    onChange={(e) => handleUpdate("secondaryButton", { ...secondaryButton, link: e.target.value })}
+                    className="w-full text-xs border rounded p-1 bg-white focus:outline-none focus:border-purple-400 font-medium cursor-pointer"
+                  >
+                    <optgroup label="עמודים">
+                      <option value="/">עמוד הבית (בית)</option>
+                      {sitePages.map((page, idx) => (
+                        <option key={`${page.id}-${idx}`} value={page.url}>{page.title}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="עוגנים בעמוד הבית">
+                      {availableAnchors.map(anchor => (
+                        <option key={anchor.id} value={`/#${anchor.id}`}>{anchor.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="אחר">
+                      {!sitePages.some(p => p.url === secondaryButton.link) && !availableAnchors.some(a => `/#${a.id}` === secondaryButton.link) && secondaryButton.link !== "/" && (
+                        <option value={secondaryButton.link}>קישור מותאם: {secondaryButton.link}</option>
+                      )}
+                      <option value="/custom">-- הגדר קישור ידנית --</option>
+                    </optgroup>
+                  </select>
+                  
+                  {(secondaryButton.link === "/custom" || (!sitePages.some(p => p.url === secondaryButton.link) && !availableAnchors.some(a => `/#${a.id}` === secondaryButton.link) && secondaryButton.link !== "/")) && (
+                    <input type="text" value={secondaryButton.link === "/custom" ? "" : secondaryButton.link} onChange={(e) => handleUpdate("secondaryButton", { ...secondaryButton, link: e.target.value })} className="w-full text-xs border rounded p-1 text-left" dir="ltr" placeholder="/link" />
+                  )}
                 </div>
               </div>
             </div>

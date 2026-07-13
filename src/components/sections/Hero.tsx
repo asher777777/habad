@@ -32,6 +32,7 @@ const MediaBackground = ({ src, className, priority, sizes }: any) => {
 };
 
 interface HeroProps {
+  id?: string;
   title?: string;
   subtitle?: string;
   description?: string;
@@ -41,6 +42,8 @@ interface HeroProps {
   primaryButton?: { text: string; link: string };
   secondaryButton?: { text: string; link: string };
   isEditing?: boolean;
+  availableAnchors?: { id: string, label: string }[];
+  backgroundColor?: string;
   onUpdateHero?: (field: "title" | "subtitle" | "description" | "imageSrc" | "buttonsVisible" | "primaryButton" | "secondaryButton", value: any) => void;
 }
 
@@ -96,6 +99,7 @@ const EditableText = ({
 };
 
 export const Hero = ({ 
+  id,
   title = "מוזמנים ומוזמנות <br /><span class=\"text-secondary\">להרגיש בבית</span>", 
   subtitle = "ברוכים הבאים לבית שלנו", 
   description = "בית חב\"ד אזור הוא הלב הפועם של הקהילה. מקום של חסד, לימוד וחיבור.",
@@ -105,6 +109,8 @@ export const Hero = ({
   primaryButton = { text: "בדיקת תפילין ומזוזות", link: "/services" },
   secondaryButton = { text: "זמני שבת וחגים", link: "/shabbat" },
   isEditing = false,
+  availableAnchors = [],
+  backgroundColor,
   onUpdateHero
 }: HeroProps) => {
 
@@ -144,6 +150,7 @@ export const Hero = ({
       buttonsVisible={buttonsVisible}
       primaryButton={primaryButton}
       secondaryButton={secondaryButton}
+      availableAnchors={availableAnchors}
       onUpdateHero={handleUpdate}
     />
   ) : null;
@@ -154,7 +161,14 @@ export const Hero = ({
         <section className="relative min-h-screen w-full flex items-center pt-24 pb-12 overflow-hidden">
           <div className="absolute inset-0 z-0">
             <MediaBackground src={bgImage} className="object-cover" priority sizes="100vw" />
-            <div className="absolute inset-0 bg-gradient-to-l from-primary/80 via-primary/50 to-transparent" />
+            {backgroundColor ? (
+              <div 
+                className="absolute inset-0" 
+                style={{ background: `linear-gradient(to left, ${backgroundColor}cc, ${backgroundColor}80, transparent)` }} 
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-l from-primary/80 via-primary/50 to-transparent" />
+            )}
           </div>
           <div className="relative z-10 px-6 max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-12">
             <div className="space-y-8 animate-in slide-in-from-right-8 duration-1000">
@@ -177,7 +191,10 @@ export const Hero = ({
             {/* Main Title Box (Span 2 cols, 2 rows) */}
             <div className="md:col-span-2 md:row-span-2 relative rounded-[2rem] overflow-hidden group">
               <MediaBackground src={bgImage} className="object-cover transition-transform duration-700 group-hover:scale-105" priority sizes="(max-width: 1024px) 100vw, 50vw" />
-              <div className="absolute inset-0 bg-primary/60 p-8 md:p-12 flex flex-col justify-end">
+              <div 
+                className={cn("absolute inset-0 p-8 md:p-12 flex flex-col justify-end", !backgroundColor && "bg-primary/60")}
+                style={backgroundColor ? { backgroundColor: `${backgroundColor}99` } : undefined}
+              >
                 <EditableText tag="p" value={subtitle} onChange={(v: string) => handleUpdate("subtitle", v)} isEditing={isEditing} className="text-secondary font-bold tracking-widest uppercase mb-2" />
                 <EditableText tag="h1" value={title} onChange={(v: string) => handleUpdate("title", v)} isEditing={isEditing} className="text-4xl md:text-6xl font-extrabold text-white leading-tight" />
               </div>
@@ -294,7 +311,11 @@ export const Hero = ({
         <section className="relative h-screen w-full flex flex-col bg-background overflow-hidden">
           <div className="relative h-[55vh] md:h-[65vh] w-full shrink-0 rounded-b-[3rem] overflow-hidden shadow-2xl">
             <MediaBackground src={bgImage} className="object-cover" priority sizes="(max-width: 1024px) 100vw, 50vw" />
-            <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/40 to-transparent" />
+            {backgroundColor ? (
+              <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${backgroundColor}e6, ${backgroundColor}66, transparent)` }} />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/40 to-transparent" />
+            )}
             <div className="absolute bottom-8 right-6 left-6 text-right">
               <EditableText tag="p" value={subtitle} onChange={(v: string) => handleUpdate("subtitle", v)} isEditing={isEditing} className="text-secondary font-bold tracking-widest uppercase mb-2 text-sm" />
               <EditableText tag="h1" value={title} onChange={(v: string) => handleUpdate("title", v)} isEditing={isEditing} className="text-4xl md:text-6xl font-extrabold text-white leading-tight" />
@@ -313,7 +334,7 @@ export const Hero = ({
   };
 
   return (
-    <div className="relative w-full">
+    <div id={id} className="relative w-full">
       {renderLayout()}
       {ImageEditorOverlay}
     </div>

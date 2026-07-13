@@ -11,9 +11,25 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   
   if (!service) return { title: "Service Not Found" };
   
+  const title = service.seo?.title || service.hero?.title || "Service";
+  const description = service.seo?.description || service.hero?.description || "Service Description";
+  const image = service.seo?.image || "";
+
   return {
-    title: service.seo?.title || service.hero?.title || "Service",
-    description: service.seo?.description || service.hero?.description || "Service Description",
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      images: image ? [{ url: image, width: 1200, height: 630 }] : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: image ? [image] : [],
+    }
   };
 }
 

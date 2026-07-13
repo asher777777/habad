@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { createManualInvoice } from "./actions";
 import { Button } from "@/components/ui/Button";
-import { CheckCircle2, AlertCircle, FileText, Banknote, Landmark } from "lucide-react";
+import { CheckCircle2, AlertCircle, FileText, Banknote, Landmark, CreditCard } from "lucide-react";
 
 export function ManualReceiptsForm() {
   const [formData, setFormData] = useState({
     clientName: "",
     amount: "",
-    paymentType: "Cash" as "Cash" | "Check" | "BankTransfer",
+    paymentType: "Cash" as "Cash" | "Check" | "BankTransfer" | "Credit",
     receiptType: "405",
     zeout: "",
     phone: "",
@@ -22,6 +22,8 @@ export function ManualReceiptsForm() {
     branchNumber: "",
     accountNumber: "",
     transferRef: "",
+    cardType: "",
+    last4Digits: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -46,6 +48,39 @@ export function ManualReceiptsForm() {
         amount: Number(formData.amount),
       });
 
+      console.log("==========================================");
+      console.log("       LOGS FOR NEDARIM SUPPORT           ");
+      console.log("==========================================");
+      if (res.debug) {
+        // Parse the SaveAchnasot request body
+        const saveReqParams = Object.fromEntries(new URLSearchParams(res.debug.saveRequest));
+        console.log("1. SAVE ACHNASOT REQUEST (מה ששלחנו לשמירת ההכנסה):");
+        console.table(saveReqParams);
+
+        console.log("2. SAVE ACHNASOT RESPONSE (התשובה שחזרה מנדרים):");
+        try {
+          console.log(JSON.parse(res.debug.saveResponse));
+        } catch {
+          console.log(res.debug.saveResponse);
+        }
+
+        console.log("------------------------------------------");
+
+        // Parse the CreateInvoice request URL
+        const invoiceUrl = new URL(res.debug.invoiceRequest);
+        const invoiceReqParams = Object.fromEntries(invoiceUrl.searchParams);
+        console.log("3. CREATE INVOICE REQUEST (מה ששלחנו להפקת הקבלה - Tamal3.aspx):");
+        console.table(invoiceReqParams);
+
+        console.log("4. CREATE INVOICE RESPONSE (התשובה שחזרה מתמ\"ל 3):");
+        try {
+          console.log(JSON.parse(res.debug.invoiceResponse));
+        } catch {
+          console.log(res.debug.invoiceResponse);
+        }
+      }
+      console.log("==========================================");
+
       if (res.success) {
         setSuccess(res.message || "הקבלה הופקה בהצלחה ונשמרה בנדרים פלוס!");
         // Reset form
@@ -63,6 +98,8 @@ export function ManualReceiptsForm() {
           branchNumber: "",
           accountNumber: "",
           transferRef: "",
+          cardType: "",
+          last4Digits: "",
         });
       } else {
         setError(res.error || "שגיאה לא ידועה בהפקת הקבלה.");
@@ -131,11 +168,11 @@ export function ManualReceiptsForm() {
 
         <div>
           <label className="block text-sm font-semibold mb-2 text-slate-700">אמצעי תשלום</label>
-          <div className="flex bg-slate-100 p-1 rounded-xl">
+          <div className="flex bg-slate-100 p-1 rounded-xl gap-1 overflow-x-auto">
             <button
               type="button"
               onClick={() => setFormData({ ...formData, paymentType: "Cash" })}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${
                 formData.paymentType === "Cash" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -144,7 +181,7 @@ export function ManualReceiptsForm() {
             <button
               type="button"
               onClick={() => setFormData({ ...formData, paymentType: "Check" })}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${
                 formData.paymentType === "Check" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -153,11 +190,20 @@ export function ManualReceiptsForm() {
             <button
               type="button"
               onClick={() => setFormData({ ...formData, paymentType: "BankTransfer" })}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${
                 formData.paymentType === "BankTransfer" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               <Landmark className="w-4 h-4" /> העברה
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, paymentType: "Credit" })}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${
+                formData.paymentType === "Credit" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <CreditCard className="w-4 h-4" /> אשראי
             </button>
           </div>
         </div>
@@ -296,6 +342,49 @@ export function ManualReceiptsForm() {
                 onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
                 className="w-full h-11 px-4 bg-white border rounded-lg outline-none focus:ring-2 focus:ring-primary/20"
                 required={formData.paymentType === "BankTransfer"}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Conditional Fields for Credit Card */}
+      {formData.paymentType === "Credit" && (
+        <div className="bg-slate-50 border rounded-2xl p-6 space-y-4">
+          <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2 mb-4">
+            <CreditCard className="w-5 h-5 text-indigo-600" />
+            פרטי אשראי חיצוני
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-slate-700">סוג כרטיס *</label>
+              <select
+                value={formData.cardType}
+                onChange={(e) => setFormData({ ...formData, cardType: e.target.value })}
+                className="w-full h-11 px-4 bg-white border rounded-lg outline-none focus:ring-2 focus:ring-primary/20"
+                required={formData.paymentType === "Credit"}
+              >
+                <option value="">בחר סוג כרטיס</option>
+                <option value="ויזה">ויזה</option>
+                <option value="מאסטרקארד">מאסטרקארד</option>
+                <option value="ישראכרט">ישראכרט</option>
+                <option value="אמריקן אקספרס">אמריקן אקספרס</option>
+                <option value="דיינרס">דיינרס</option>
+                <option value="אחר">אחר</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-slate-700">4 ספרות אחרונות *</label>
+              <input
+                type="text"
+                maxLength={4}
+                pattern="\d{4}"
+                value={formData.last4Digits}
+                onChange={(e) => setFormData({ ...formData, last4Digits: e.target.value.replace(/\D/g, "") })}
+                className="w-full h-11 px-4 bg-white border rounded-lg outline-none focus:ring-2 focus:ring-primary/20 font-mono text-left"
+                placeholder="1234"
+                dir="ltr"
+                required={formData.paymentType === "Credit"}
               />
             </div>
           </div>

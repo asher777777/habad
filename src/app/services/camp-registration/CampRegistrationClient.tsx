@@ -79,8 +79,11 @@ const themePresets: Record<string, { bgPrimary: string; bgSecondary: string; tex
   }
 };
 
+import { useSearchParams } from "next/navigation";
+
 export function CampRegistrationClient({ initialData, isAdmin }: { initialData: any, isAdmin?: boolean }) {
-  const [isEditing, setIsEditing] = useState(false);
+  const searchParams = useSearchParams();
+  const [isEditing, setIsEditing] = useState(isAdmin && searchParams.get("edit") === "true");
   const [content, setContent] = useState(initialData);
   const [isFormBuilderOpen, setIsFormBuilderOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -97,8 +100,13 @@ export function CampRegistrationClient({ initialData, isAdmin }: { initialData: 
 
   const handleSave = async () => {
     try {
-      await saveServicePage("camp-registration", content);
-      setIsEditing(false);
+      const cleanContent = JSON.parse(JSON.stringify(content));
+      const res = await saveServicePage("camp-registration", cleanContent);
+      if (res.success) {
+        setIsEditing(false);
+      } else {
+        alert("שגיאה בשמירה: " + res.error);
+      }
     } catch (e) {
       console.error("Failed to save camp page", e);
       alert("שגיאה בשמירה ל-Firebase.");

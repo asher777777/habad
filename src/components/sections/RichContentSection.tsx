@@ -15,6 +15,7 @@ const RichTextEditor = dynamic(
 );
 
 interface RichContentSectionProps {
+  id?: string;
   heading?: string;
   body?: string;
   layout?: "center" | "two-column" | "grid";
@@ -23,6 +24,7 @@ interface RichContentSectionProps {
 }
 
 export const RichContentSection = ({
+  id,
   heading = "אירוע שכולו שמחה, קדושה ומשפחתיות",
   body = "",
   layout = "center",
@@ -39,7 +41,7 @@ export const RichContentSection = ({
   };
 
   return (
-    <section className="py-24 bg-white relative z-20" dir="rtl">
+    <section id={id} className="py-24 bg-white relative z-20" dir="rtl">
       <div className="max-w-5xl mx-auto px-6">
         
         {/* Design Layout Options Panel inside the Section in edit mode (similar to service page) */}

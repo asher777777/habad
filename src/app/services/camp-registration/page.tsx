@@ -2,6 +2,8 @@ import { Metadata } from "next";
 import { getServicePage } from "@/features/services/actions";
 import { CampRegistrationClient } from "./CampRegistrationClient";
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "קייטנת חב״ד אזור - קיץ תשס״ו",
   description: "הרשמה לקייטנת חב״ד אזור, מסורת של חוויה! קיץ תשס״ו (2026).",

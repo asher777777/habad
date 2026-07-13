@@ -1,7 +1,8 @@
 "use server";
 
-import { adminDb } from "@/lib/firebase-admin";
+import { adminDb, adminStorage } from "@/lib/firebase-admin";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { addMediaToLibrary } from "@/features/media/actions";
 
 export async function getAiSettings() {
   try {
@@ -106,6 +107,144 @@ ${customInstruction ? `דגשים מיוחדים של המשתמש (חובה ל�
     return { success: true, text: responseText };
   } catch (error) {
     console.error("AI Rephrase Error:", error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function generateSeoTagsWithAI(
+  pageContent: string
+): Promise<{ success: boolean; title?: string; description?: string; keywords?: string; error?: string }> {
+  if (!pageContent || !pageContent.trim()) {
+    return { success: false, error: "לא נשלח תוכן לניתוח" };
+  }
+
+  let apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+  if (!apiKey) {
+    const aiSettings = await getAiSettings();
+    apiKey = aiSettings?.googleAiKey || "";
+  }
+
+  if (!apiKey) {
+    return { success: false, error: "לא מוגדר מפתח API של Gemini. אנא הגדירו בהגדרות המערכת." };
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
+
+    const prompt = `
+מטרה: ייצור תגיות SEO (כותרת, תיאור מטא ומילות מפתח) ממוקדות ואיכותיות לעמוד באתר של בית חב"ד, על בסיס התוכן הבא של העמוד.
+
+תוכן העמוד:
+"${pageContent}"
+
+הנחיות:
+1. Title (כותרת): עד 60 תווים, מושכת, כוללת את מילת המפתח העיקרית ושם המותג (לדוגמה "... | בית חב"ד").
+2. Description (תיאור מטא): עד 155 תווים, מסכם את תוכן העמוד, מניע לפעולה, חם ומזמין.
+3. Keywords (מילות מפתח): 5-10 מילות מפתח מופרדות בפסיקים, רלוונטיות לחיפוש בגוגל.
+
+פלט נדרש (חובה להחזיר רק אובייקט JSON תקני, ללא פורמט Markdown או טקסט נוסף):
+{
+  "title": "...",
+  "description": "...",
+  "keywords": "..."
+}
+`;
+
+    const result = await model.generateContent(prompt);
+    let responseText = result.response.text().trim();
+    
+    // Remove markdown code blocks if any
+    if (responseText.startsWith("\`\`\`")) {
+      const lines = responseText.split("\\n");
+      if (lines.length > 2) {
+        responseText = lines.slice(1, -1).join("\\n");
+      }
+    }
+
+    const json = JSON.parse(responseText);
+    
+    return { 
+      success: true, 
+      title: json.title, 
+      description: json.description, 
+      keywords: json.keywords 
+    };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function generateSeoImageWithAI(
+  promptStr: string
+): Promise<{ success: boolean; imageUrl?: string; error?: string }> {
+  let apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+  if (!apiKey) {
+    const aiSettings = await getAiSettings();
+    apiKey = aiSettings?.googleAiKey || "";
+  }
+
+  if (!apiKey) {
+    return { success: false, error: "לא מוגדר מפתח API של Gemini. אנא הגדירו בהגדרות המערכת." };
+  }
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          instances: [
+            {
+              prompt: promptStr
+            }
+          ],
+          parameters: {
+            sampleCount: 1
+          }
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      console.error("Gemini Image API Error Data:", errData);
+      throw new Error(`Gemini Image response error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const b64Image = data?.predictions?.[0]?.bytesBase64Encoded;
+    if (!b64Image) {
+      throw new Error("No image data received from Gemini");
+    }
+
+    // Upload the base64 image to Firebase Storage so it doesn't break Firestore size limits
+    const bucket = adminStorage.bucket();
+    const fileName = `seo_generated_${Date.now()}.jpg`;
+    const file = bucket.file(`media/${fileName}`);
+    const buffer = Buffer.from(b64Image, "base64");
+
+    await file.save(buffer, {
+      metadata: {
+        contentType: "image/jpeg",
+      },
+    });
+
+    const urls = await file.getSignedUrl({
+      action: 'read',
+      expires: '03-09-2491',
+    });
+    const publicUrl = urls[0];
+
+    // Optional: Add it to the media library
+    await addMediaToLibrary(publicUrl, `AI SEO: ${(promptStr || "").slice(0, 30)}`);
+
+    return { success: true, imageUrl: publicUrl };
+  } catch (error) {
+    console.error("AI SEO Image Generation Error:", error);
     return { success: false, error: (error as Error).message };
   }
 }
