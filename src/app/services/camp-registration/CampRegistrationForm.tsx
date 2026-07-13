@@ -27,6 +27,7 @@ export function CampRegistrationForm() {
   });
 
   const [paymentOption, setPaymentOption] = useState<"1300" | "1600" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"credit" | "cash">("credit");
 
   const paymentAmount = paymentOption === "1300" ? 980 : paymentOption === "1600" ? 1800 : 0;
 
@@ -49,11 +50,21 @@ export function CampRegistrationForm() {
     setLoading(true);
     
     // 1. Register lead in CRM
-    const res = await registerCampLead(formData);
+    const res = await registerCampLead({
+      ...formData,
+      payment_amount: String(paymentAmount),
+      payment_method: paymentMethod === "cash" ? "מזומן / העברה (במשרד)" : "אשראי",
+      notes: `מסלול מבוקש: ${paymentOption === "1300" ? "בוקר" : "צהרון"}. סכום: ${paymentAmount} ש"ח.`
+    });
     
     if (res.success && res.contactId) {
       setContactId(res.contactId);
-      setStep(4); // Move to Payment frame
+      
+      if (paymentMethod === "cash") {
+        setSuccess(true);
+      } else {
+        setStep(4); // Move to Payment frame
+      }
     } else {
       alert("אירעה שגיאה בשמירת הפרטים. אנא נסה שנית.");
     }
@@ -74,7 +85,13 @@ export function CampRegistrationForm() {
           ✓
         </div>
         <h3 className="text-2xl font-bold text-slate-800 mb-2">הרשמה הושלמה בהצלחה!</h3>
-        <p className="text-slate-600">תודה רבה, נתוני ההרשמה והתשלום התקבלו בהצלחה במערכת. נתראה בקייטנה!</p>
+        <p className="text-slate-600 mb-4">תודה רבה, נתוני ההרשמה {paymentMethod === "credit" ? "והתשלום " : ""}התקבלו בהצלחה במערכת.</p>
+        
+        {paymentMethod === "cash" && (
+          <div className="bg-amber-50 text-amber-800 p-4 rounded-xl border border-amber-200 text-sm font-semibold">
+            שימו לב: הרישום אינו שלם עד להסדרת התשלום (במזומן או בהעברה בנקאית) מול המשרד. נשמח לראותכם!
+          </div>
+        )}
       </div>
     );
   }
@@ -189,7 +206,7 @@ export function CampRegistrationForm() {
       {/* Step 3: Payment Option */}
       {step === 3 && (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-          <h3 className="text-xl font-bold text-slate-800 mb-4">בחירת מסלול</h3>
+          <h3 className="text-xl font-bold text-slate-800 mb-4">בחירת מסלול ואמצעי תשלום</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
             {/* Option 13:00 */}
@@ -216,6 +233,21 @@ export function CampRegistrationForm() {
             </label>
 
           </div>
+
+          <div className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-200">
+            <h4 className="text-lg font-bold text-slate-800 mb-4">אופן התשלום</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "credit" ? "border-orange-400 bg-white" : "border-slate-200 hover:border-orange-200"}`}>
+                <input type="radio" name="paymentMethod" value="credit" checked={paymentMethod === "credit"} onChange={() => setPaymentMethod("credit")} className="w-5 h-5 text-orange-500" />
+                <span className="font-semibold text-slate-700">תשלום באשראי (מאובטח)</span>
+              </label>
+              <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "cash" ? "border-orange-400 bg-white" : "border-slate-200 hover:border-orange-200"}`}>
+                <input type="radio" name="paymentMethod" value="cash" checked={paymentMethod === "cash"} onChange={() => setPaymentMethod("cash")} className="w-5 h-5 text-orange-500" />
+                <span className="font-semibold text-slate-700">מזומן / העברה (מול המשרד)</span>
+              </label>
+            </div>
+          </div>
+
           <div className="pt-4 flex justify-between gap-4">
             <Button type="button" variant="ghost" onClick={() => setStep(2)} className="px-6 h-12 text-slate-500 rounded-xl">→ חזור</Button>
             <Button 
@@ -224,7 +256,7 @@ export function CampRegistrationForm() {
               disabled={!paymentOption || loading}
               className="px-8 h-12 text-lg rounded-xl bg-orange-400 hover:bg-orange-500 text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
             >
-              {loading ? "מייצר בקשת תשלום..." : "מעבר לתשלום המאובטח ←"}
+              {loading ? "מעבד נתונים..." : (paymentMethod === "credit" ? "מעבר לתשלום המאובטח ←" : "סיום הרשמה ←")}
             </Button>
           </div>
         </div>

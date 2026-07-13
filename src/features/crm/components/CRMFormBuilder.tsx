@@ -89,7 +89,8 @@ const FIELD_TYPES = [
   { id: "hidden", label: "שדה מוסתר" }
 ];
 
-export function CRMFormBuilder({ value, onChange }: CRMFormBuilderProps) {
+export function CRMFormBuilder({ value: rawValue, onChange }: CRMFormBuilderProps) {
+  const value = { ...rawValue, fields: rawValue.fields || [] };
   const [activeTab, setActiveTab] = useState<"fields" | "whatsapp" | "settings">("fields");
   const [expandedField, setExpandedField] = useState<number | null>(null);
   
@@ -160,7 +161,7 @@ export function CRMFormBuilder({ value, onChange }: CRMFormBuilderProps) {
   };
 
   // Get options for conditional selection (only select fields)
-  const selectFields = value.fields
+  const selectFields = (value.fields || [])
     .map((f, i) => ({ label: f.label, index: i, type: f.type }))
     .filter(f => f.type === "select");
 

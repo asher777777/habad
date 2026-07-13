@@ -232,6 +232,11 @@ export async function generateHeroImageWithAI(prompt: string) {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const errorMsg = errorData.error?.message || response.statusText;
+      
+      if (response.status === 429 || String(errorMsg).includes("Resource exhausted") || String(errorMsg).includes("quota")) {
+        throw new Error("הגענו למגבלת השימוש (מכסה) של מחולל התמונות של גוגל. אנא נסה שוב מאוחר יותר או הגדל את מכסת ה-API (Quota) במסוף של גוגל קלאוד.");
+      }
+
       throw new Error(`שגיאה ממחולל התמונות של גוגל: ${errorMsg}`);
     }
 

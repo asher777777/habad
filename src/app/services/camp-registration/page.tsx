@@ -29,9 +29,13 @@ const defaultContent = {
   }
 };
 
+import { auth } from "@/lib/auth";
+
 export default async function CampRegistrationPage() {
   const data = await getServicePage("camp-registration");
   const initialData = data || defaultContent;
+  const session = await auth();
+  const isAdmin = !!session?.user;
 
-  return <CampRegistrationClient initialData={initialData} />;
+  return <CampRegistrationClient initialData={initialData} isAdmin={isAdmin} />;
 }

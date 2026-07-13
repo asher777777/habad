@@ -1,11 +1,53 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Edit3, Save, X, Sparkles, Image as ImageIcon, Loader2, Wand2, FileText, Settings } from "lucide-react";
+import { Edit3, Save, X, Sparkles, Image as ImageIcon, Loader2, Wand2, FileText, Settings, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { saveServicePage, generateHeroImageWithAI } from "@/features/services/actions";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { CampRegistrationForm } from "./CampRegistrationForm";
+import { CRMFormBuilder, FormConfig } from "@/features/crm/components/CRMFormBuilder";
+import { CRMFormRenderer } from "@/features/crm/components/CRMFormRenderer";
+import { Modal } from "@/components/ui/Modal";
+
+const defaultCampFormConfig: FormConfig = {
+  enabled: false,
+  form_type: "payment",
+  submit_button_text: "מעבר לתשלום המאובטח ←",
+  submit_button_bg_color: "#fb923c",
+  submit_button_text_color: "#ffffff",
+  save_to_crm: true,
+  crm_owner_id: "1",
+  standard_success_message: "",
+  standard_redirect_url: "",
+  standard_whatsapp_message: "",
+  standard_whatsapp_image_url: "",
+  payment_amount: 980,
+  payment_amount_crm_map: "payment_amount",
+  payment_pending_message: "שלום {שם האם}, רשמנו את {שם פרטי של הילד} לקייטנה בהצלחה, ממתינים לתשלום...",
+  payment_pending_image_url: "",
+  payment_success_message: "התשלום עבר בהצלחה! נתראה בקייטנה.",
+  payment_success_image_url: "",
+  payment_group: "",
+  payment_zeut_kupa: "",
+  payment_receipt_type: "405",
+  payment_frequency: "one-time",
+  fields: [
+    { label: "שם פרטי של הילד", type: "text", map_to: "child_first_name", required: true, default_value: "", options: "", url_param_enable: false, url_param_name: "", cond_enable: false, cond_field_index: 0, cond_operator: "is", cond_value: "", step: 1 },
+    { label: "שם משפחה", type: "text", map_to: "child_last_name", required: true, default_value: "", options: "", url_param_enable: false, url_param_name: "", cond_enable: false, cond_field_index: 0, cond_operator: "is", cond_value: "", step: 1 },
+    { label: "תעודת זהות", type: "text", map_to: "child_id_number", required: true, default_value: "", options: "", url_param_enable: false, url_param_name: "", cond_enable: false, cond_field_index: 0, cond_operator: "is", cond_value: "", step: 1 },
+    { label: "עולה לכיתה", type: "select", map_to: "child_grade", required: true, default_value: "", options: "א\nב\nג\nד\nה\nו", url_param_enable: false, url_param_name: "", cond_enable: false, cond_field_index: 0, cond_operator: "is", cond_value: "", step: 1 },
+    { label: "מגדר", type: "select", map_to: "gender", required: true, default_value: "", options: "בן\nבת", url_param_enable: false, url_param_name: "", cond_enable: false, cond_field_index: 0, cond_operator: "is", cond_value: "", step: 1 },
+    { label: "קיימת רגישות כלשהי?", type: "select", map_to: "allergies_has", required: true, default_value: "", options: "לא\nכן", url_param_enable: false, url_param_name: "", cond_enable: false, cond_field_index: 0, cond_operator: "is", cond_value: "", step: 1 },
+    { label: "פרט את הרגישות", type: "textarea", map_to: "allergies_details", required: true, default_value: "", options: "", url_param_enable: false, url_param_name: "", cond_enable: true, cond_field_index: 5, cond_operator: "is", cond_value: "כן", step: 1 },
+    { label: "שם האם", type: "text", map_to: "mother_name", required: true, default_value: "", options: "", url_param_enable: false, url_param_name: "", cond_enable: false, cond_field_index: 0, cond_operator: "is", cond_value: "", step: 2 },
+    { label: "טלפון האם", type: "tel", map_to: "mother_phone", required: true, default_value: "", options: "", url_param_enable: false, url_param_name: "", cond_enable: false, cond_field_index: 0, cond_operator: "is", cond_value: "", step: 2 },
+    { label: "שם האב", type: "text", map_to: "father_name", required: true, default_value: "", options: "", url_param_enable: false, url_param_name: "", cond_enable: false, cond_field_index: 0, cond_operator: "is", cond_value: "", step: 2 },
+    { label: "טלפון האב", type: "tel", map_to: "father_phone", required: true, default_value: "", options: "", url_param_enable: false, url_param_name: "", cond_enable: false, cond_field_index: 0, cond_operator: "is", cond_value: "", step: 2 },
+    { label: "בחירת מסלול קייטנה", type: "select", map_to: "payment_amount", required: true, default_value: "", options: "980 - מסלול בוקר (עד 13:00)\n1800 - מסלול צהרון (עד 16:00 כולל ארוחה חמה)", url_param_enable: false, url_param_name: "", cond_enable: false, cond_field_index: 0, cond_operator: "is", cond_value: "", step: 3 },
+    { label: "אמצעי תשלום", type: "select", map_to: "", required: true, default_value: "", options: "אשראי באתר (תשלום מאובטח)\nמזומן / העברה בנקאית (מול המשרד)", url_param_enable: false, url_param_name: "", cond_enable: false, cond_field_index: 0, cond_operator: "is", cond_value: "", step: 3 }
+  ]
+};
 
 const themePresets: Record<string, { bgPrimary: string; bgSecondary: string; textHighlight: string; btnBg: string; btnHover: string; abstractShape1: string; abstractShape2: string }> = {
   sky: {
@@ -37,9 +79,10 @@ const themePresets: Record<string, { bgPrimary: string; bgSecondary: string; tex
   }
 };
 
-export function CampRegistrationClient({ initialData }: { initialData: any }) {
+export function CampRegistrationClient({ initialData, isAdmin }: { initialData: any, isAdmin?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(initialData);
+  const [isFormBuilderOpen, setIsFormBuilderOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [generatingImage, setGeneratingImage] = useState(false);
   const [aiError, setAiError] = useState("");
@@ -99,9 +142,10 @@ export function CampRegistrationClient({ initialData }: { initialData: any }) {
     <div className={`min-h-screen bg-gradient-to-b ${activeTheme.bgPrimary} ${activeTheme.bgSecondary} font-sans`} dir="rtl">
       
       {/* Admin Floating Control Dashboard */}
-      <div className="fixed bottom-24 right-6 z-[100] flex flex-col gap-2.5">
-        {isEditing ? (
-          <>
+      {isAdmin && (
+        <div className="fixed bottom-24 right-6 z-[100] flex flex-col gap-2.5">
+          {isEditing ? (
+            <>
             <Button 
               variant="primary" 
               size="lg" 
@@ -136,6 +180,7 @@ export function CampRegistrationClient({ initialData }: { initialData: any }) {
           </Button>
         )}
       </div>
+      )}
 
       {isEditing && (
         <div className="max-w-5xl mx-auto px-6 py-8 mt-24 mb-4 bg-white/90 backdrop-blur-md border border-slate-200 rounded-[2.5rem] shadow-xl text-right z-50 relative">
@@ -364,9 +409,36 @@ export function CampRegistrationClient({ initialData }: { initialData: any }) {
           <p className="text-lg text-slate-600">מלאו את הפרטים להבטחת המקום. התשלום מאובטח.</p>
         </div>
         
-        {/* We reuse the beautiful multi-step form built for the camp */}
-        <div className={isEditing ? "opacity-75 pointer-events-none" : ""}>
-          <CampRegistrationForm />
+        {/* We reuse the beautiful multi-step form built for the camp OR dynamic form */}
+        <div className="relative group max-w-2xl mx-auto">
+          {isEditing && (
+            <>
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 rounded-[2.5rem] opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button onClick={() => setIsFormBuilderOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-6 py-2 shadow-xl flex items-center gap-2 font-bold text-sm">
+                  <Settings2 className="w-4 h-4" />
+                  ערוך הגדרות טופס
+                </Button>
+              </div>
+              <Modal isOpen={isFormBuilderOpen} onClose={() => setIsFormBuilderOpen(false)}>
+                <Modal.Content className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 bg-transparent border-0 shadow-none">
+                  <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-[2.5rem] p-4 text-slate-100 relative">
+                    <Modal.Close className="top-4 right-4 text-slate-400 hover:text-white" />
+                    <CRMFormBuilder
+                      value={content.form || defaultCampFormConfig}
+                      onChange={(formConfig) => setContent({ ...content, form: formConfig })}
+                    />
+                  </div>
+                </Modal.Content>
+              </Modal>
+            </>
+          )}
+          <div className={`transition-all ${isEditing ? "opacity-75 pointer-events-none group-hover:blur-sm" : ""}`}>
+            {content.form?.enabled ? (
+              <CRMFormRenderer config={content.form} formId="camp-registration" formTitle={content.hero?.title || "הרשמה לקייטנה"} />
+            ) : (
+              <CampRegistrationForm />
+            )}
+          </div>
         </div>
       </section>
 

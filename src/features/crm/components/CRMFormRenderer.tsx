@@ -221,8 +221,33 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
         });
 
         const amount = getPaymentAmount();
-        if (amount <= 0) {
+        
+        // Check if user selected cash/bank transfer to bypass credit card checkout
+        const isCashPayment = Object.entries(formData).some(([key, val]) => 
+           (key.includes("אמצעי תשלום") || key.includes("אופן תשלום")) && 
+           typeof val === "string" && 
+           (val.includes("מזומן") || val.includes("העברה"))
+        );
+
+        if (amount <= 0 && !isCashPayment) {
           throw new Error("סכום לתשלום חייב להיות גדול מ-0");
+        }
+
+        if (isCashPayment || amount === 0) {
+          await submitCRMForm({
+            formId,
+            formTitle,
+            formType: "payment",
+            formData: cleanFormData,
+            embeddingPostId: formId,
+            embeddingPostTitle: formTitle,
+            formConfig: config,
+            status: "ממתין לתשלום (מזומן/העברה)"
+          });
+          
+          setSuccessMsg("פרטי הרישום התקבלו בהצלחה! הרישום לקייטנה יושלם סופית רק לאחר הסדרת התשלום מול המשרד.");
+          setIsSubmitted(true);
+          return;
         }
 
         await submitCRMForm({
@@ -233,7 +258,7 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
           embeddingPostId: formId,
           embeddingPostTitle: formTitle,
           formConfig: config,
-          status: "ממתין לתשלום"
+          status: "ממתין לתשלום (אשראי)"
         });
 
         setCheckoutData({ amount, clientName, phone, mail });
@@ -369,19 +394,32 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
 
           {/* Steps Progress Bar Indicator */}
           {totalSteps > 1 && (
-            <div className="flex items-center justify-between mb-6 border-b pb-4">
-              <span className="text-xs font-bold text-slate-500">שלב {currentStep} מתוך {totalSteps}</span>
-              <div className="flex gap-1.5">
-                {Array.from({ length: totalSteps }).map((_, i) => (
-                  <div
-                    key={i}
+            <div className="flex items-center justify-between mb-10 relative">
+              <div className="absolute left-0 right-0 top-1/2 h-1 bg-slate-100 -z-10 -translate-y-1/2 rounded-full"></div>
+              <div 
+                className="absolute right-0 top-1/2 h-1 -z-10 -translate-y-1/2 rounded-full transition-all duration-300" 
+                style={{ 
+                  width: `${((currentStep - 1) / (totalSteps - 1 || 1)) * 100}%`,
+                  backgroundColor: config.submit_button_bg_color || "#fb923c"
+                }}
+              ></div>
+              
+              {Array.from({ length: totalSteps }).map((_, i) => {
+                const s = i + 1;
+                const isActive = currentStep >= s;
+                return (
+                  <div 
+                    key={s} 
                     className={cn(
-                      "h-2 w-8 rounded-full transition-all",
-                      i + 1 <= currentStep ? "bg-indigo-600" : "bg-slate-200"
+                      "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors",
+                      isActive ? "text-white shadow-md" : "bg-white border-2 border-slate-200 text-slate-400"
                     )}
-                  />
-                ))}
-              </div>
+                    style={isActive ? { backgroundColor: config.submit_button_bg_color || "#fb923c" } : {}}
+                  >
+                    {s}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -423,23 +461,55 @@ export function CRMFormRenderer({ config, formId, formTitle }: CRMFormRendererPr
                         required={field.required}
                       />
                     ) : field.type === "select" ? (
-                      <select
-                        value={formData[field.label] || ""}
-                        onChange={(e) => handleInputChange(field.label, e.target.value)}
-                        className={cn(
-                          "w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-800 border rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all",
-                          hasError ? "border-red-500 bg-red-50/10 focus:ring-red-500/20" : "border-slate-200 focus:border-indigo-500"
-                        )}
-                        style={fieldBgStyle}
-                        required={field.required}
-                      >
-                        <option value="">בחר...</option>
-                        {field.options.split("\n").map(opt => {
-                          const clean = opt.trim();
-                          if (!clean) return null;
-                          return <option key={clean} value={clean}>{clean}</option>;
-                        })}
-                      </select>
+                      field.options.split("\n").filter(o => o.trim()).length <= 4 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                          {field.options.split("\n").filter(o => o.trim()).map(opt => {
+                            const clean = opt.trim();
+                            const isSelected = formData[field.label] === clean;
+                            return (
+                              <label
+                                key={clean}
+                                className={cn(
+                                  "relative flex items-center p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                                  isSelected 
+                                    ? "border-orange-400 bg-orange-50/50" 
+                                    : "border-slate-200 bg-white hover:border-orange-200"
+                                )}
+                                style={fieldBgStyle}
+                              >
+                                <input
+                                  type="radio"
+                                  name={field.label}
+                                  value={clean}
+                                  checked={isSelected}
+                                  onChange={(e) => handleInputChange(field.label, e.target.value)}
+                                  className="w-5 h-5 text-orange-500 border-slate-300 ml-3"
+                                  required={field.required && !formData[field.label]}
+                                />
+                                <span className="font-bold text-slate-700 leading-tight">{clean}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <select
+                          value={formData[field.label] || ""}
+                          onChange={(e) => handleInputChange(field.label, e.target.value)}
+                          className={cn(
+                            "w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-800 border rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all",
+                            hasError ? "border-red-500 bg-red-50/10 focus:ring-red-500/20" : "border-slate-200 focus:border-indigo-500"
+                          )}
+                          style={fieldBgStyle}
+                          required={field.required}
+                        >
+                          <option value="">בחר...</option>
+                          {field.options.split("\n").map(opt => {
+                            const clean = opt.trim();
+                            if (!clean) return null;
+                            return <option key={clean} value={clean}>{clean}</option>;
+                          })}
+                        </select>
+                      )
                     ) : (
                       <input
                         type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "number" ? "number" : "text"}
