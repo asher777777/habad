@@ -6,7 +6,15 @@ import {
   getCRMStats, 
   getCRMFilters, 
   handleBulkAction, 
-  importContacts 
+  importContacts,
+  getCustomFields,
+  addCustomField,
+  updateCustomField,
+  deleteCustomField,
+  getCustomTabs,
+  addCustomTab,
+  updateCustomTab,
+  deleteCustomTab
 } from "@/features/crm/actions";
 import { Contact } from "@/features/crm/types";
 import { ContactModal } from "./ContactModal";
@@ -29,10 +37,12 @@ import {
   Mail,
   Clock,
   MoreVertical,
-  TrendingUp
+  TrendingUp,
+  Settings
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { MessageModal } from "./MessageModal";
+import { Modal } from "@/components/ui/Modal";
 
 const getInitials = (name: string, fm?: string) => {
   const first = name ? name.trim().charAt(0) : "";
@@ -94,6 +104,24 @@ export default function CRMDashboardPage() {
   // Modal
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+  // CRM Dynamic Settings Modal
+  const [isCrmModalOpen, setIsCrmModalOpen] = useState(false);
+  const [newCrmFieldLabel, setNewCrmFieldLabel] = useState("");
+  const [newCrmFieldType, setNewCrmFieldType] = useState("text");
+  const [newCrmFieldCategory, setNewCrmFieldCategory] = useState("details");
+  const [subFields, setSubFields] = useState<Array<{ label: string; type: string }>>([]);
+  const [customTabs, setCustomTabs] = useState<any[]>([]);
+  const [customFields, setCustomFields] = useState<any[]>([]);
+  const [crmSettingsTab, setCrmSettingsTab] = useState<"fields" | "tabs">("fields");
+  const [newTabLabel, setNewTabLabel] = useState("");
+
+  // Custom Field Edit states
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [editFieldLabel, setEditFieldLabel] = useState("");
+  const [editFieldType, setEditFieldType] = useState("text");
+  const [editFieldCategory, setEditFieldCategory] = useState("details");
+  const [editSubFields, setEditSubFields] = useState<Array<{ id?: string; label: string; type: string }>>([]);
 
   // Message Modal States
   const [messageModalOpen, setMessageModalOpen] = useState(false);
@@ -161,6 +189,11 @@ export default function CRMDashboardPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    getCustomFields().then(setCustomFields);
+    getCustomTabs().then(setCustomTabs);
+  }, [isCrmModalOpen]);
 
   // Sorting Handler
   const handleSort = (field: string) => {
@@ -429,6 +462,15 @@ export default function CRMDashboardPage() {
           >
             <Download className="w-4 h-4 text-slate-500" />
             ייצוא לאקסל
+          </Button>
+
+          <Button 
+            onClick={() => setIsCrmModalOpen(true)} 
+            variant="outline"
+            className="rounded-2xl border-slate-200 hover:bg-slate-50 shadow-sm font-bold text-slate-700 flex items-center gap-1.5 h-11 px-5"
+          >
+            <Settings className="w-4 h-4 text-slate-500" />
+            הגדרות שדות ולשוניות
           </Button>
 
           <Button 
@@ -885,6 +927,534 @@ export default function CRMDashboardPage() {
         type={messageModalType}
         onSuccess={loadData}
       />
+
+      {/* Modal for CRM fields & tabs settings */}
+      <Modal isOpen={isCrmModalOpen} onClose={() => setIsCrmModalOpen(false)}>
+        <Modal.Content className="text-right font-sans max-w-2xl max-h-[85vh] overflow-y-auto">
+          <Modal.Header title="ניהול שדות ולשוניות מותאמים אישית ל-CRM" description="הגדר את מבנה כרטיס הלקוח במערכת על ידי יצירת לשוניות ושדות חדשים." />
+          
+          {/* Settings Tabs Selector */}
+          <div className="flex border-b border-slate-100 mb-4">
+            <button
+              type="button"
+              onClick={() => setCrmSettingsTab("fields")}
+              className={`flex-1 py-2 font-bold text-center border-b-2 text-xs transition-colors ${crmSettingsTab === "fields" ? "border-indigo-650 text-indigo-650" : "border-transparent text-slate-500 hover:text-slate-700"}`}
+            >
+              ניהול שדות
+            </button>
+            <button
+              type="button"
+              onClick={() => setCrmSettingsTab("tabs")}
+              className={`flex-1 py-2 font-bold text-center border-b-2 text-xs transition-colors ${crmSettingsTab === "tabs" ? "border-indigo-650 text-indigo-650" : "border-transparent text-slate-500 hover:text-slate-700"}`}
+            >
+              ניהול לשוניות (קטגוריות)
+            </button>
+          </div>
+
+          {crmSettingsTab === "tabs" ? (
+            /* TAB: MANAGE TABS */
+            <div className="space-y-4 py-2 text-xs">
+              {/* Add New Tab form */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex gap-2 items-end">
+                <div className="flex-grow space-y-1">
+                  <label className="font-bold text-slate-650">שם הלשונית החדשה</label>
+                  <input
+                    type="text"
+                    value={newTabLabel}
+                    onChange={(e) => setNewTabLabel(e.target.value)}
+                    placeholder="למשל: פעילות קהילה, חוגים"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    if (!newTabLabel.trim()) return;
+                    const res = await addCustomTab({ label: newTabLabel.trim() });
+                    if (res.success && res.tab) {
+                      setCustomTabs(prev => [...prev, res.tab]);
+                      setNewTabLabel("");
+                    } else {
+                      alert("שגיאה בהוספת לשונית");
+                    }
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-10 shrink-0"
+                >
+                  הוסף לשונית
+                </Button>
+              </div>
+
+              {/* List of Custom Tabs */}
+              <div className="space-y-2">
+                <span className="font-bold text-slate-400">לשוניות מותאמות אישית קיימות:</span>
+                {customTabs.length === 0 ? (
+                  <div className="text-center py-6 text-slate-500 italic bg-white border border-dashed rounded-2xl">אין לשוניות מותאמות אישית. הלשוניות המובנות במערכת מוצגות כברירת מחדל.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {customTabs.map(tab => (
+                      <div key={tab.id} className="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl">
+                        <span className="font-bold text-slate-800 text-sm">{tab.label}</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const newLabel = window.prompt("הזן שם חדש ללשונית:", tab.label);
+                              if (newLabel && newLabel.trim() && newLabel.trim() !== tab.label) {
+                                const res = await updateCustomTab(tab.id, newLabel.trim());
+                                if (res.success) {
+                                  setCustomTabs(customTabs.map(t => t.id === tab.id ? { ...t, label: newLabel.trim() } : t));
+                                }
+                              }
+                            }}
+                            className="text-xs text-indigo-650 hover:underline font-bold px-2"
+                          >
+                            ערוך שם
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!window.confirm(`האם אתה בטוח שברצונך למחוק את הלשונית "${tab.label}"?`)) return;
+                              const res = await deleteCustomTab(tab.id);
+                              if (res.success) {
+                                setCustomTabs(customTabs.filter(t => t.id !== tab.id));
+                              }
+                            }}
+                            className="text-xs text-rose-600 hover:text-rose-800 font-bold px-2"
+                          >
+                            מחק
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* TAB: MANAGE FIELDS */
+            <div className="space-y-4 py-2 text-xs">
+              {/* Add Custom Field Form */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                <span className="font-bold text-slate-700 block border-b pb-1.5 text-xs">יצירת שדה מותאם אישית חדש:</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-655">שם השדה (תווית)</label>
+                    <input
+                      type="text"
+                      value={newCrmFieldLabel}
+                      onChange={(e) => setNewCrmFieldLabel(e.target.value)}
+                      placeholder="למשל: מידת חולצה, שם מוסד"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-655">סוג השדה</label>
+                    <select
+                      value={newCrmFieldType}
+                      onChange={(e) => {
+                        setNewCrmFieldType(e.target.value);
+                        if (e.target.value !== "repeater") {
+                          setSubFields([]);
+                        }
+                      }}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none"
+                    >
+                      <option value="text">טקסט חופשי</option>
+                      <option value="number">מספר</option>
+                      <option value="date">תאריך</option>
+                      <option value="textarea">אזור טקסט ארוך</option>
+                      <option value="image">תמונה</option>
+                      <option value="wysiwyg">עורך טקסט עשיר (WYSIWYG)</option>
+                      <option value="repeater">שדה חוזר (Repeater - רשימה מרובת שדות)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-655">לשונית קטגוריה</label>
+                    <select
+                      value={newCrmFieldCategory}
+                      onChange={(e) => setNewCrmFieldCategory(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none"
+                    >
+                      <option value="details">פרטים כלליים</option>
+                      <option value="camp">משפחה וקייטנה</option>
+                      <option value="company">חברה ומקור</option>
+                      <option value="tags">תיוגים והערות</option>
+                      <option value="events">אירועים ומפגשים</option>
+                      {customTabs.map(t => (
+                        <option key={t.id} value={t.id}>{t.label} (לשונית מותאמת)</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Subfields editor for Repeater field */}
+                {newCrmFieldType === "repeater" && (
+                  <div className="border border-slate-200 bg-white p-3 rounded-xl space-y-3 animate-in slide-in-from-top-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-indigo-650">הגדרת תתי-שדות לשדה החוזר:</span>
+                      <button
+                        type="button"
+                        onClick={() => setSubFields([...subFields, { label: "", type: "text" }])}
+                        className="text-xs text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        הוסף תת-שדה
+                      </button>
+                    </div>
+                    
+                    {subFields.length === 0 ? (
+                      <div className="text-center py-4 text-slate-400 italic">לחץ על הוסף תת-שדה כדי להוסיף עמודות לשדה החוזר</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {subFields.map((sf, idx) => (
+                          <div key={idx} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              value={sf.label}
+                              onChange={(e) => {
+                                const updated = [...subFields];
+                                updated[idx].label = e.target.value;
+                                setSubFields(updated);
+                              }}
+                              placeholder="למשל: שם הילד, שנת לידה"
+                              className="flex-grow rounded-lg border px-2.5 py-1.5"
+                            />
+                            <select
+                              value={sf.type}
+                              onChange={(e) => {
+                                const updated = [...subFields];
+                                updated[idx].type = e.target.value;
+                                setSubFields(updated);
+                              }}
+                              className="rounded-lg border px-2.5 py-1.5 bg-white text-[11px]"
+                            >
+                              <option value="text">טקסט</option>
+                              <option value="number">מספר</option>
+                              <option value="date">תאריך</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => setSubFields(subFields.filter((_, i) => i !== idx))}
+                              className="p-1.5 text-slate-400 hover:text-red-500"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-1">
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      if (!newCrmFieldLabel.trim()) return;
+                      
+                      // Format sub-fields with generated IDs
+                      let subFieldsWithIds: any[] = [];
+                      if (newCrmFieldType === "repeater") {
+                        const invalidSub = subFields.some(sf => !sf.label.trim());
+                        if (invalidSub) {
+                          alert("חובה למלא כותרת עבור כל תתי-השדות");
+                          return;
+                        }
+                        subFieldsWithIds = subFields.map((sf, idx) => ({
+                          id: `sf_${idx}_${Date.now().toString(36)}`,
+                          label: sf.label.trim(),
+                          type: sf.type
+                        }));
+                      }
+
+                      const res = await addCustomField({
+                        label: newCrmFieldLabel.trim(),
+                        category: newCrmFieldCategory,
+                        type: newCrmFieldType,
+                        subFields: subFieldsWithIds
+                      });
+                      if (res.success && res.field) {
+                        setCustomFields(prev => [...prev, res.field]);
+                        setNewCrmFieldLabel("");
+                        setNewCrmFieldType("text");
+                        setNewCrmFieldCategory("details");
+                        setSubFields([]);
+                      } else {
+                        alert("שגיאה בהוספת השדה: " + res.error);
+                      }
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-10 px-6 font-bold"
+                  >
+                    הוסף שדה מותאם
+                  </Button>
+                </div>
+              </div>
+
+              {/* List of Custom Fields */}
+              <div className="space-y-2">
+                <span className="font-bold text-slate-400">שדות מותאמים אישית קיימות:</span>
+                {customFields.length === 0 ? (
+                  <div className="text-center py-6 text-slate-500 italic bg-white border border-dashed rounded-2xl font-bold">אין שדות מותאמים אישית. הגדר שדות חדשים בממשק למעלה.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {customFields.map(field => {
+                      const isEditing = editingFieldId === field.id;
+                      if (isEditing) {
+                        return (
+                          <div key={field.id} className="p-4 bg-slate-50 border border-indigo-150 rounded-xl space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-550">כותרת השדה</label>
+                                <input
+                                  type="text"
+                                  value={editFieldLabel}
+                                  onChange={(e) => setEditFieldLabel(e.target.value)}
+                                  className="w-full rounded-lg border border-slate-205 bg-white px-2.5 py-1.5 text-xs focus:outline-none"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-550">סוג השדה</label>
+                                <select
+                                  value={editFieldType}
+                                  onChange={(e) => {
+                                    setEditFieldType(e.target.value);
+                                    if (e.target.value !== "repeater") {
+                                      setEditSubFields([]);
+                                    }
+                                  }}
+                                  className="w-full rounded-lg border border-slate-205 bg-white px-2.5 py-1.5 text-xs focus:outline-none"
+                                >
+                                  <option value="text">טקסט חופשי</option>
+                                  <option value="number">מספר</option>
+                                  <option value="date">תאריך</option>
+                                  <option value="textarea">אזור טקסט ארוך</option>
+                                  <option value="image">תמונה</option>
+                                  <option value="wysiwyg">עורך טקסט עשיר (WYSIWYG)</option>
+                                  <option value="repeater">שדה חוזר (Repeater)</option>
+                                </select>
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-550">העבר ללשונית</label>
+                                <select
+                                  value={editFieldCategory}
+                                  onChange={(e) => setEditFieldCategory(e.target.value)}
+                                  className="w-full rounded-lg border border-slate-205 bg-white px-2.5 py-1.5 text-xs focus:outline-none"
+                                >
+                                  <option value="details">פרטים כלליים</option>
+                                  <option value="camp">משפחה וקייטנה</option>
+                                  <option value="company">חברה ומקור</option>
+                                  <option value="tags">תיוגים והערות</option>
+                                  <option value="events">אירועים ומפגשים</option>
+                                  {customTabs.map(t => (
+                                    <option key={t.id} value={t.id}>{t.label} (לשונית מותאמת)</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {editFieldType === "repeater" && (
+                              <div className="border border-slate-200 bg-white p-3 rounded-lg space-y-2.5 mt-2">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-indigo-650">תתי-שדות (עמודות):</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditSubFields([...editSubFields, { label: "", type: "text" }])}
+                                    className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                    הוסף תת-שדה
+                                  </button>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  {editSubFields.map((sf, idx) => (
+                                    <div key={idx} className="flex gap-2 items-center">
+                                      <input
+                                        type="text"
+                                        value={sf.label}
+                                        onChange={(e) => {
+                                          const updated = [...editSubFields];
+                                          updated[idx].label = e.target.value;
+                                          setEditSubFields(updated);
+                                        }}
+                                        placeholder="למשל: שם הילד, שנת לידה"
+                                        className="flex-grow rounded-md border px-2 py-1 text-xs"
+                                      />
+                                      <select
+                                        value={sf.type}
+                                        onChange={(e) => {
+                                          const updated = [...editSubFields];
+                                          updated[idx].type = e.target.value;
+                                          setEditSubFields(updated);
+                                        }}
+                                        className="rounded-md border px-2 py-1 bg-white text-[10px]"
+                                      >
+                                        <option value="text">טקסט</option>
+                                        <option value="number">מספר</option>
+                                        <option value="date">תאריך</option>
+                                      </select>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditSubFields(editSubFields.filter((_, i) => i !== idx))}
+                                        className="p-1 text-slate-400 hover:text-red-500"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex justify-end gap-2 pt-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setEditingFieldId(null)}
+                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold text-xs"
+                              >
+                                ביטול
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!editFieldLabel.trim()) return;
+                                  
+                                  let finalSubFields: any[] = [];
+                                  if (editFieldType === "repeater") {
+                                    const invalidSub = editSubFields.some(sf => !sf.label.trim());
+                                    if (invalidSub) {
+                                      alert("חובה למלא כותרת עבור כל תתי-השדות");
+                                      return;
+                                    }
+                                    finalSubFields = editSubFields.map((sf, idx) => ({
+                                      id: sf.id || `sf_${idx}_${Date.now().toString(36)}`,
+                                      label: sf.label.trim(),
+                                      type: sf.type
+                                    }));
+                                  }
+
+                                  const res = await updateCustomField(field.id, {
+                                    label: editFieldLabel.trim(),
+                                    category: editFieldCategory,
+                                    type: editFieldType,
+                                    subFields: finalSubFields
+                                  });
+                                  if (res.success) {
+                                    setCustomFields(customFields.map(f => f.id === field.id ? { 
+                                      ...f, 
+                                      label: editFieldLabel.trim(),
+                                      category: editFieldCategory,
+                                      type: editFieldType,
+                                      subFields: finalSubFields
+                                    } : f));
+                                    setEditingFieldId(null);
+                                  } else {
+                                    alert("שגיאה בעדכון השדה");
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs"
+                              >
+                                שמור שדה
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={field.id} className="p-3 bg-white border border-slate-100 rounded-xl space-y-2">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <span className="font-bold text-slate-800 text-sm">{field.label}</span>
+                              <span className="text-[10px] text-slate-450 mr-2">
+                                (סוג: {
+                                  field.type === "text" ? "טקסט" :
+                                  field.type === "number" ? "מספר" :
+                                  field.type === "date" ? "תאריך" :
+                                  field.type === "textarea" ? "אזור טקסט" :
+                                  field.type === "image" ? "תמונה" :
+                                  field.type === "wysiwyg" ? "עורך עשיר" :
+                                  field.type === "repeater" ? "שדה חוזר" : field.type
+                                } | קטגוריה: {
+                                  field.category === "details" ? "פרטים כלליים" :
+                                  field.category === "camp" ? "משפחה וקייטנה" :
+                                  field.category === "company" ? "חברה ומקור" :
+                                  field.category === "tags" ? "תיוגים" :
+                                  field.category === "events" ? "אירועים" : 
+                                  (customTabs.find(t => t.id === field.category)?.label || field.category)
+                                })
+                              </span>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingFieldId(field.id);
+                                  setEditFieldLabel(field.label);
+                                  setEditFieldType(field.type);
+                                  setEditFieldCategory(field.category);
+                                  setEditSubFields(field.subFields ? [...field.subFields] : []);
+                                }}
+                                className="text-xs text-indigo-650 hover:underline font-bold px-2 cursor-pointer"
+                              >
+                                ערוך
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!window.confirm(`האם אתה בטוח שברצונך למחוק את השדה "${field.label}"?`)) return;
+                                  const res = await deleteCustomField(field.id);
+                                  if (res.success) {
+                                    setCustomFields(customFields.filter(f => f.id !== field.id));
+                                  }
+                                }}
+                                className="text-xs text-rose-600 hover:text-rose-800 font-bold px-2 cursor-pointer"
+                              >
+                                מחק
+                              </button>
+                            </div>
+                          </div>
+
+                          {field.type === "repeater" && field.subFields && Array.isArray(field.subFields) && (
+                            <div className="bg-slate-50 p-2 rounded-lg text-[10px] text-slate-500 flex gap-2 flex-wrap">
+                              <span className="font-bold text-slate-655 border-l pl-2">תתי-שדות:</span>
+                              {field.subFields.map((sf: any, sfIdx: number) => (
+                                <span key={sf.id || sfIdx} className="bg-white border rounded px-1.5 py-0.5">
+                                  {sf.label} ({sf.type === "number" ? "מספר" : sf.type === "date" ? "תאריך" : "טקסט"})
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <Modal.Footer>
+            <div className="flex gap-2 justify-end w-full">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsCrmModalOpen(false);
+                  setNewCrmFieldLabel("");
+                  setNewCrmFieldType("text");
+                  setNewCrmFieldCategory("details");
+                  setSubFields([]);
+                  setNewTabLabel("");
+                }}
+                className="rounded-xl h-10 px-5 font-bold"
+              >
+                סגור
+              </Button>
+            </div>
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal>
     </div>
   );
 }

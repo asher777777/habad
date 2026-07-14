@@ -6,7 +6,7 @@ import { getContactById, handleBulkAction } from "@/features/crm/actions";
 import { ContactModal } from "../ContactModal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { RefreshCw, TrendingUp, Users, Tag, List, MapPin, Filter, Edit2, Trash2, Plus, Columns, PieChart as PieChartIcon, Download, ArrowUp, ArrowDown, ArrowUpDown, Printer } from "lucide-react";
+import { RefreshCw, TrendingUp, Users, Tag, List, MapPin, Filter, Edit2, Trash2, Plus, Columns, PieChart as PieChartIcon, Download, ArrowUp, ArrowDown, ArrowUpDown, Printer, User, Building, Calendar, CreditCard } from "lucide-react";
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -30,6 +30,7 @@ export default function AnalyticsDashboardPage() {
   const [filterTag, setFilterTag] = useState("");
   const [filterForm, setFilterForm] = useState("");
   const [activeMetricFilter, setActiveMetricFilter] = useState<string | null>(null);
+  const [activeTabFilter, setActiveTabFilter] = useState<string | null>(null);
   const [requiredDataColumns, setRequiredDataColumns] = useState<string[]>([]);
   const [showColumnsMenu, setShowColumnsMenu] = useState(false);
   const [showSummaries, setShowSummaries] = useState(false);
@@ -154,6 +155,106 @@ export default function AnalyticsDashboardPage() {
 
 
 
+  const tabFilters = useMemo(() => {
+    if (!data) return [];
+    return [
+      {
+        id: "camp",
+        label: "קייטנה",
+        icon: Users,
+        filterFn: (c: any, customFields: any[]) => {
+          const campFields = [
+            "child_first_name", "child_last_name", "child_grade", "child_id_number",
+            "allergies_has", "allergies_details", "father_name", "mother_name",
+            "father_phone", "mother_phone"
+          ];
+          const hasBase = campFields.some(
+            field => c[field] !== null && c[field] !== undefined && c[field] !== ""
+          );
+          const hasChildren = c.children && Array.isArray(c.children) && c.children.length > 0;
+          const campCustom = customFields.filter((f: any) => f.category === "camp").map((f: any) => f.id);
+          const hasCustom = campCustom.some(
+            (id: string) => c[id] !== null && c[id] !== undefined && c[id] !== ""
+          );
+          return hasBase || hasChildren || hasCustom;
+        }
+      },
+      {
+        id: "details",
+        label: "פרטים כלליים",
+        icon: User,
+        filterFn: (c: any, customFields: any[]) => {
+          const detailFields = ["f_m", "gender", "birth_date", "email", "mh_crm_city", "mh_crm_street", "work_phone"];
+          const hasBase = detailFields.some(
+            field => c[field] !== null && c[field] !== undefined && c[field] !== ""
+          );
+          const detailsCustom = customFields.filter((f: any) => f.category === "details").map((f: any) => f.id);
+          const hasCustom = detailsCustom.some(
+            (id: string) => c[id] !== null && c[id] !== undefined && c[id] !== ""
+          );
+          return hasBase || hasCustom;
+        }
+      },
+      {
+        id: "company",
+        label: "חברה ומקור",
+        icon: Building,
+        filterFn: (c: any, customFields: any[]) => {
+          const companyFields = ["company_name", "job_title", "work_phone", "website", "lead_source", "last_form_name"];
+          const hasBase = companyFields.some(
+            field => c[field] !== null && c[field] !== undefined && c[field] !== ""
+          );
+          const companyCustom = customFields.filter((f: any) => f.category === "company").map((f: any) => f.id);
+          const hasCustom = companyCustom.some(
+            (id: string) => c[id] !== null && c[id] !== undefined && c[id] !== ""
+          );
+          return hasBase || hasCustom;
+        }
+      },
+      {
+        id: "tags",
+        label: "תיוגים והערות",
+        icon: Tag,
+        filterFn: (c: any, customFields: any[]) => {
+          const tagsFields = ["tg1", "tg2", "tg3", "notes"];
+          const hasBase = tagsFields.some(
+            field => c[field] !== null && c[field] !== undefined && c[field] !== ""
+          );
+          const tagsCustom = customFields.filter((f: any) => f.category === "tags").map((f: any) => f.id);
+          const hasCustom = tagsCustom.some(
+            (id: string) => c[id] !== null && c[id] !== undefined && c[id] !== ""
+          );
+          return hasBase || hasCustom;
+        }
+      },
+      {
+        id: "events",
+        label: "אירועים ומפגשים",
+        icon: Calendar,
+        filterFn: (c: any, customFields: any[]) => {
+          const hasEvents = c.events && Array.isArray(c.events) && c.events.length > 0;
+          const eventsCustom = customFields.filter((f: any) => f.category === "events").map((f: any) => f.id);
+          const hasCustom = eventsCustom.some(
+            (id: string) => c[id] !== null && c[id] !== undefined && c[id] !== ""
+          );
+          return hasEvents || hasCustom;
+        }
+      },
+      {
+        id: "payments",
+        label: "תשלומים",
+        icon: CreditCard,
+        filterFn: (c: any) => {
+          return (
+            (c.total_spent !== undefined && Number(c.total_spent) > 0) ||
+            (c.order_count !== undefined && Number(c.order_count) > 0) ||
+            (c.last_order_date !== null && c.last_order_date !== undefined && c.last_order_date !== "")
+          );
+        }
+      }
+    ];
+  }, [data]);
+
   const filteredContacts = data ? data.contacts.filter((c: any) => {
     if (filterSource && c.lead_source !== filterSource && c.mh_crm_city !== filterSource) return false;
     if (filterTag && c.tg1 !== filterTag && c.tg2 !== filterTag && c.tg3 !== filterTag) return false;
@@ -171,6 +272,13 @@ export default function AnalyticsDashboardPage() {
         return val === null || val === undefined || val === "" || val === 0 || val === "0";
       });
       if (isMissingData) return false;
+    }
+
+    if (activeTabFilter) {
+      const matchedTab = tabFilters.find(t => t.id === activeTabFilter);
+      if (matchedTab && !matchedTab.filterFn(c, data.customFields || [])) {
+        return false;
+      }
     }
     
     return true;
@@ -443,6 +551,46 @@ export default function AnalyticsDashboardPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* Tab Quick Filters */}
+      <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm print:hidden">
+        <p className="text-xs font-bold text-slate-500 mb-3">סינון מהיר לפי לשוניות כרטיס לקוח:</p>
+        <div className="flex flex-wrap gap-2 items-center">
+          {tabFilters.map((tab) => {
+            const isActive = activeTabFilter === tab.id;
+            const Icon = tab.icon;
+            const count = data.contacts.filter((c) => tab.filterFn(c, data.customFields || [])).length;
+            
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTabFilter(isActive ? null : tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-bold transition-all ${
+                  isActive 
+                    ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/10" 
+                    : "bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100 hover:text-slate-700"
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-slate-400"}`} />
+                <span>{tab.label}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-md font-mono ${isActive ? "bg-indigo-700 text-indigo-100" : "bg-slate-200/60 text-slate-500"}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+          {activeTabFilter && (
+            <button
+              type="button"
+              onClick={() => setActiveTabFilter(null)}
+              className="text-xs text-indigo-600 hover:text-indigo-800 font-bold px-3 py-2 hover:underline"
+            >
+              נקה סינון לשוניות
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Charts Grid - Conditionally Rendered */}

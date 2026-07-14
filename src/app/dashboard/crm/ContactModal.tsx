@@ -5,9 +5,11 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Contact, ContactEvent, ChildData } from "@/features/crm/types";
-import { createContact, updateContact, getCustomFields } from "@/features/crm/actions";
+import { createContact, updateContact, getCustomFields, getCustomTabs } from "@/features/crm/actions";
 import { syncContactMessages } from "@/features/whatsapp/actions";
 import { Calendar, Tag, Building, Clock, CreditCard, User, Users, Plus, Trash2, MessageCircle, Phone, Mail, Edit, RefreshCw, ChevronDown } from "lucide-react";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
+import { ImageUpload } from "@/components/ui/ImageUpload";
 
 const getInitials = (name: string, fm?: string) => {
   const first = name ? name.trim().charAt(0) : "";
@@ -42,7 +44,7 @@ interface ContactModalProps {
   onSuccess: () => void;
 }
 
-type TabType = "details" | "camp" | "tags" | "company" | "events" | "timeline" | "payments" | "";
+type TabType = string;
 
 export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactModalProps) {
   const isEdit = !!contact;
@@ -108,10 +110,12 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
   const [events, setEvents] = useState<ContactEvent[]>([]);
   const [customFieldsConfig, setCustomFieldsConfig] = useState<any[]>([]);
   const [customFieldsValues, setCustomFieldsValues] = useState<Record<string, any>>({});
+  const [customTabs, setCustomTabs] = useState<any[]>([]);
 
   useEffect(() => {
     getCustomFields().then(setCustomFieldsConfig);
-  }, []);
+    getCustomTabs().then(setCustomTabs);
+  }, [isOpen]);
 
   // Initialize fields on open/contact change
   useEffect(() => {
@@ -277,6 +281,124 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
     setEvents(updatedEvents);
   };
 
+  const renderCustomFieldInput = (field: any) => {
+    if (field.type === "textarea") {
+      return (
+        <textarea
+          value={customFieldsValues[field.id] || ""}
+          onChange={(e) => setCustomFieldsValues(prev => ({...prev, [field.id]: e.target.value}))}
+          rows={3}
+          className="flex w-full rounded-2xl border border-input bg-white px-3 py-2 text-sm focus-visible:outline-none"
+        />
+      );
+    }
+
+    if (field.type === "wysiwyg") {
+      return (
+        <div className="col-span-full">
+          <RichTextEditor
+            value={customFieldsValues[field.id] || ""}
+            onChange={(val) => setCustomFieldsValues(prev => ({...prev, [field.id]: val}))}
+          />
+        </div>
+      );
+    }
+
+    if (field.type === "image") {
+      return (
+        <ImageUpload
+          currentImage={customFieldsValues[field.id] || ""}
+          onSelect={(url) => setCustomFieldsValues(prev => ({...prev, [field.id]: url}))}
+        />
+      );
+    }
+
+    if (field.type === "repeater") {
+      const currentVal = Array.isArray(customFieldsValues[field.id]) ? customFieldsValues[field.id] : [];
+      return (
+        <div className="space-y-4 border border-slate-200 p-4 bg-slate-50/50 rounded-2xl col-span-full w-full">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-xs font-bold text-slate-500">פריטים ברשימה ({currentVal.length})</span>
+            <button
+              type="button"
+              onClick={() => {
+                const newItem = (field.subFields || []).reduce((acc: any, sub: any) => {
+                  acc[sub.id] = "";
+                  return acc;
+                }, {} as any);
+                setCustomFieldsValues(prev => ({
+                  ...prev,
+                  [field.id]: [...currentVal, newItem]
+                }));
+              }}
+              className="text-xs text-indigo-650 hover:text-indigo-855 font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              הוסף פריט
+            </button>
+          </div>
+          {currentVal.length === 0 ? (
+            <div className="text-center py-4 text-slate-400 text-xs italic">אין פריטים ברשימה</div>
+          ) : (
+            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+              {currentVal.map((itemVal: any, itemIdx: number) => (
+                <div key={itemIdx} className="p-4 bg-white border border-slate-150 rounded-xl relative space-y-3 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!window.confirm("האם אתה בטוח שברצונך למחוק פריט זה?")) return;
+                      const updated = currentVal.filter((_: any, i: number) => i !== itemIdx);
+                      setCustomFieldsValues(prev => ({
+                        ...prev,
+                        [field.id]: updated
+                      }));
+                    }}
+                    className="absolute left-3 top-3 p-1.5 text-slate-350 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                    {(field.subFields || []).map((sub: any) => (
+                      <div key={sub.id} className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500">{sub.label}</label>
+                        <Input
+                          type={sub.type === "number" ? "number" : sub.type === "date" ? "date" : "text"}
+                          value={itemVal[sub.id] || ""}
+                          onChange={(e) => {
+                            const updatedList = [...currentVal];
+                            updatedList[itemIdx] = {
+                              ...updatedList[itemIdx],
+                              [sub.id]: e.target.value
+                            };
+                            setCustomFieldsValues(prev => ({
+                              ...prev,
+                              [field.id]: updatedList
+                            }));
+                          }}
+                          className="h-8 text-xs rounded-lg"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <Input
+        type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
+        value={customFieldsValues[field.id] || ""}
+        onChange={(e) => setCustomFieldsValues(prev => ({...prev, [field.id]: e.target.value}))}
+        className="rounded-xl bg-white"
+      />
+    );
+  };
+
   const renderCustomFields = (category: string) => {
     const fields = customFieldsConfig.filter(f => f.category === category);
     if (fields.length === 0) return null;
@@ -286,26 +408,86 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
         <h4 className="text-sm font-black text-slate-400 mb-3 uppercase tracking-wider">שדות מותאמים אישית</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {fields.map(field => (
-            <div key={field.id} className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-600">{field.label}</label>
-              {field.type === "textarea" ? (
-                <textarea
-                  value={customFieldsValues[field.id] || ""}
-                  onChange={(e) => setCustomFieldsValues(prev => ({...prev, [field.id]: e.target.value}))}
-                  rows={3}
-                  className="flex w-full rounded-2xl border border-input bg-white px-3 py-2 text-sm focus-visible:outline-none"
-                />
-              ) : (
-                <Input
-                  type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
-                  value={customFieldsValues[field.id] || ""}
-                  onChange={(e) => setCustomFieldsValues(prev => ({...prev, [field.id]: e.target.value}))}
-                  className="rounded-xl bg-white"
-                />
-              )}
+            <div key={field.id} className="space-y-1.5 col-span-full md:col-span-1">
+              <label className="text-xs font-bold text-slate-655">{field.label}</label>
+              {renderCustomFieldInput(field)}
             </div>
           ))}
         </div>
+      </div>
+    );
+  };
+
+  const renderFieldValue = (field: any, val: any) => {
+    if (!val) return <span className="font-bold text-slate-800">-</span>;
+
+    if (field.type === "image") {
+      return (
+        <div className="mt-1">
+          <img src={val} className="max-w-[200px] h-auto rounded-xl border border-slate-200 shadow-sm" alt={field.label} />
+        </div>
+      );
+    }
+
+    if (field.type === "wysiwyg") {
+      return (
+        <div 
+          className="prose prose-xs max-w-none text-slate-800 bg-white p-3 border rounded-xl mt-1 leading-relaxed" 
+          dangerouslySetInnerHTML={{ __html: val }} 
+        />
+      );
+    }
+
+    if (field.type === "repeater") {
+      if (!Array.isArray(val) || val.length === 0) return <span className="text-slate-400 italic">אין פריטים ברשימה</span>;
+      return (
+        <div className="space-y-2 mt-1.5 w-full">
+          {val.map((item: any, i: number) => (
+            <div key={i} className="bg-white p-3 border border-slate-100 rounded-xl space-y-1.5 shadow-sm text-xs">
+              <div className="flex items-center gap-1.5 border-b pb-1 mb-1">
+                <span className="w-4 h-4 rounded-full bg-indigo-50 text-indigo-650 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
+                <span className="text-[10px] font-bold text-slate-450">פריט</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {(field.subFields || []).map((sub: any) => (
+                  <div key={sub.id} className="flex justify-between gap-4 text-[11px] border-b border-dashed border-slate-50 pb-1 last:border-0 last:pb-0">
+                    <span className="text-slate-400 font-medium">{sub.label}:</span>
+                    <span className="font-bold text-slate-800">{item[sub.id] || "-"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return <span className="font-bold text-slate-800 leading-relaxed">{String(val)}</span>;
+  };
+
+  const renderCustomFieldsView = (category: string) => {
+    const fields = customFieldsConfig.filter(f => f.category === category);
+    if (fields.length === 0) return null;
+
+    const activeFields = fields.filter(field => {
+      const val = contact?.[field.id];
+      if (Array.isArray(val)) return val.length > 0;
+      return val !== null && val !== undefined && val !== "";
+    });
+
+    if (activeFields.length === 0) return null;
+
+    return (
+      <div className="mt-4 pt-4 border-t border-slate-100 space-y-3 col-span-full">
+        {activeFields.map(field => {
+          const val = contact?.[field.id];
+          return (
+            <div key={field.id} className="flex flex-col gap-1">
+              <span className="text-slate-400 font-medium text-[11px]">{field.label}:</span>
+              {renderFieldValue(field, val)}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -424,6 +606,8 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
                     <div className="flex justify-between"><span className="text-slate-400 font-medium">תאריך לידה:</span><span className="font-bold text-slate-800">{birthDate || "-"}</span></div>
                     {workPhone && <div className="flex justify-between"><span className="text-slate-400 font-medium">טלפון עבודה:</span><span className="font-bold text-slate-800" dir="ltr">{workPhone}</span></div>}
                   </div>
+                  {renderCustomFieldsView("details")}
+                  {renderCustomFieldsView("camp")}
                 </div>
 
                 <div>
@@ -434,6 +618,7 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
                     <div className="flex justify-between"><span className="text-slate-400 font-medium">מקור הגעה:</span><span className="font-bold text-slate-800">{leadSource || "-"}</span></div>
                     {website && <div className="flex justify-between"><span className="text-slate-400 font-medium">אתר:</span><span className="font-bold text-indigo-600 truncate max-w-[150px]"><a href={website} target="_blank" className="hover:underline">{website}</a></span></div>}
                   </div>
+                  {renderCustomFieldsView("company")}
                 </div>
               </div>
 
@@ -464,6 +649,8 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
                   <div className="bg-amber-50/20 p-4 border border-amber-100/50 rounded-2xl text-xs text-slate-700 leading-relaxed min-h-[90px] text-right">
                     {notes ? notes : <span className="text-slate-300 italic">אין הערות מוגדרות...</span>}
                   </div>
+                  {renderCustomFieldsView("tags")}
+                  {renderCustomFieldsView("events")}
                 </div>
               </div>
 
@@ -471,9 +658,9 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
               <div className="md:col-span-2">
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">תוויות ותיוג</h4>
                 <div className="flex flex-wrap gap-2">
-                  {tg1 && <span className="px-3 py-1 bg-slate-100 text-slate-600 border border-slate-200/60 rounded-xl text-xs font-bold">{tg1}</span>}
-                  {tg2 && <span className="px-3 py-1 bg-slate-100 text-slate-600 border border-slate-200/60 rounded-xl text-xs font-bold">{tg2}</span>}
-                  {tg3 && <span className="px-3 py-1 bg-slate-100 text-slate-600 border border-slate-200/60 rounded-xl text-xs font-bold">{tg3}</span>}
+                  {tg1 && <span className="px-3 py-1 bg-slate-100 text-slate-650 border border-slate-200/60 rounded-xl text-xs font-bold">{tg1}</span>}
+                  {tg2 && <span className="px-3 py-1 bg-slate-100 text-slate-650 border border-slate-200/60 rounded-xl text-xs font-bold">{tg2}</span>}
+                  {tg3 && <span className="px-3 py-1 bg-slate-100 text-slate-650 border border-slate-200/60 rounded-xl text-xs font-bold">{tg3}</span>}
                   {!tg1 && !tg2 && !tg3 && <span className="text-slate-400 text-xs italic">אין תוויות מוגדרות עבור איש קשר זה.</span>}
                 </div>
               </div>
@@ -542,6 +729,35 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
                   );
                 })()}
               </div>
+
+              {/* Custom Tabs content in View Mode */}
+              {customTabs.map(tab => {
+                const fields = customFieldsConfig.filter(f => f.category === tab.id);
+                // Filter fields that actually have a value
+                const activeFields = fields.filter(field => {
+                  const val = contact?.[field.id];
+                  if (Array.isArray(val)) return val.length > 0;
+                  return val !== null && val !== undefined && val !== "";
+                });
+                if (activeFields.length === 0) return null;
+
+                return (
+                  <div key={tab.id} className="md:col-span-2 border-t pt-4 mt-2">
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">{tab.label}</h4>
+                    <div className="bg-slate-50/50 p-4 border border-slate-100 rounded-2xl space-y-3 text-xs text-slate-700">
+                      {activeFields.map(field => {
+                        const val = contact?.[field.id];
+                        return (
+                          <div key={field.id} className="flex flex-col gap-1">
+                            <span className="text-slate-450 font-semibold">{field.label}:</span>
+                            {renderFieldValue(field, val)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
 
             </div>
 
@@ -1332,6 +1548,40 @@ export function ContactModal({ isOpen, onClose, contact, onSuccess }: ContactMod
             )}
           </div>
           )}
+
+          {/* Dynamic Custom Tabs Accordions in Edit Mode */}
+          {customTabs.map((tab) => {
+            const fields = customFieldsConfig.filter(f => f.category === tab.id);
+            if (fields.length === 0) return null;
+
+            return (
+              <div key={tab.id} className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-sm shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(activeTab === tab.id ? "" : tab.id)}
+                  className="flex items-center justify-between w-full p-4 font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-5 h-5 text-indigo-500" />
+                    {tab.label}
+                  </div>
+                  <ChevronDown className={`w-5 h-5 transition-transform ${activeTab === tab.id ? "rotate-180 text-indigo-650" : "text-slate-400"}`} />
+                </button>
+                {activeTab === tab.id && (
+                  <div className="p-6 border-t border-slate-100 bg-slate-50/30 animate-in slide-in-from-top-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {fields.map(field => (
+                        <div key={field.id} className="space-y-1.5 col-span-full md:col-span-1">
+                          <label className="text-xs font-bold text-slate-650">{field.label}</label>
+                          {renderCustomFieldInput(field)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           </div>
           

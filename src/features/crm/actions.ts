@@ -586,9 +586,10 @@ export async function submitCRMForm(params: {
       updatedAt: new Date().toISOString(),
     };
 
-    if (amountPaid) {
-      dbData.total_spent = (existingData?.total_spent || 0) + amountPaid;
-      dbData.order_count = (existingData?.order_count || 0) + 1;
+    const finalAmountPaid = amountPaid ? Number(amountPaid) : 0;
+    if (finalAmountPaid > 0) {
+      dbData.total_spent = Number(existingData?.total_spent || 0) + finalAmountPaid;
+      dbData.order_count = Number(existingData?.order_count || 0) + 1;
       dbData.last_order_date = new Date().toISOString();
     }
 
@@ -633,23 +634,75 @@ export async function submitCRMForm(params: {
       dbData.children = currentChildren;
     }
 
+    const customFields = await getCustomFields();
+
+    // Group repeater sub-fields by their parent repeater ID
+    const repeaterInputs: Record<string, Record<string, string>> = {};
+
+    Object.keys(contactData).forEach((key) => {
+      if (key.includes(".")) {
+        const [parentId, subId] = key.split(".");
+        const customField = customFields.find((f: any) => f.id === parentId);
+        if (customField && customField.type === "repeater") {
+          if (!repeaterInputs[parentId]) {
+            repeaterInputs[parentId] = {};
+          }
+          repeaterInputs[parentId][subId] = contactData[key];
+        }
+      }
+    });
+
+    // Save repeater inputs to dbData
+    Object.entries(repeaterInputs).forEach(([parentId, newValues]) => {
+      const hasAnyValue = Object.values(newValues).some(v => v !== null && v !== undefined && v !== "");
+      if (hasAnyValue) {
+        let existingArray = existingData?.[parentId] || [];
+        if (!Array.isArray(existingArray)) {
+          existingArray = [];
+        }
+        dbData[parentId] = [...existingArray, newValues];
+      }
+    });
+
     // Append any field that was mapped, including custom dynamic fields
     Object.keys(contactData).forEach((key) => {
+      if (key.includes(".")) return; // Handled by repeater logic above
+
       if (
         contactData[key] !== undefined && 
         key !== "conta_name" && 
         key !== "f_m" && 
         key !== "email" && 
         key !== "conta_phone" &&
+        key !== "total_spent" &&
+        key !== "order_count" &&
         !key.startsWith("child_") &&
         !key.startsWith("allergies_")
       ) {
-        dbData[key] = contactData[key];
+        const customField = customFields.find((f: any) => f.id === key);
+        if (customField && customField.type === "repeater") {
+          if (contactData[key]) {
+            let existingArray = existingData?.[key] || [];
+            if (!Array.isArray(existingArray)) {
+              existingArray = [];
+            }
+            dbData[key] = [...existingArray, contactData[key]];
+          }
+        } else {
+          // Merge logic to avoid overwriting existing value with empty field
+          const newVal = contactData[key];
+          const oldVal = existingData?.[key];
+          if ((newVal === "" || newVal === null || newVal === undefined) && (oldVal !== undefined && oldVal !== null && oldVal !== "")) {
+            dbData[key] = oldVal;
+          } else {
+            dbData[key] = newVal;
+          }
+        }
       }
     });
 
     if (embeddingPostTitle) {
-      dbData.lead_source = embeddingPostTitle;
+      dbData.lead_source = existingData?.lead_source || embeddingPostTitle;
     }
     dbData.last_form_name = formTitle;
     dbData.last_form_page = params.embeddingPostId || "";
@@ -864,6 +917,7 @@ export async function getCustomFields() {
       category: string;
       type: string;
       label: string;
+      subFields?: Array<{ id: string; label: string; type: string }>;
     }>;
   } catch (error) {
     console.error("Error in getCustomFields:", error);
@@ -872,7 +926,7 @@ export async function getCustomFields() {
 }
 
 // 15. Add custom CRM field
-export async function addCustomField(field: Omit<{id: string; category: string; type: string; label: string;}, "id">) {
+export async function addCustomField(field: Omit<{id: string; category: string; type: string; label: string; subFields?: Array<{ id: string; label: string; type: string }>}, "id">) {
   try {
     const ownerId = await getUserId();
     const docRef = adminDb.collection("crm_settings").doc(`custom_fields_${ownerId}`);
@@ -895,6 +949,120 @@ export async function addCustomField(field: Omit<{id: string; category: string; 
   } catch (error: any) {
     console.error("Error in addCustomField:", error);
     return { success: false, error: error.message || String(error) };
+  }
+}
+
+export async function updateCustomField(id: string, updates: Partial<{ label: string; category: string; type: string; subFields: Array<{ id: string; label: string; type: string }> }>) {
+  try {
+    const ownerId = await getUserId();
+    const docRef = adminDb.collection("crm_settings").doc(`custom_fields_${ownerId}`);
+    const docSnap = await docRef.get();
+    
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      const fields = (data?.fields || []).map((f: any) => f.id === id ? { ...f, ...updates } : f);
+      await docRef.update({ fields });
+    }
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in updateCustomField:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteCustomField(id: string) {
+  try {
+    const ownerId = await getUserId();
+    const docRef = adminDb.collection("crm_settings").doc(`custom_fields_${ownerId}`);
+    const docSnap = await docRef.get();
+    
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      const fields = (data?.fields || []).filter((f: any) => f.id !== id);
+      await docRef.update({ fields });
+    }
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in deleteCustomField:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Custom Tabs Server Actions
+export async function getCustomTabs() {
+  try {
+    const ownerId = await getUserId();
+    const docRef = adminDb.collection("crm_settings").doc(`custom_tabs_${ownerId}`);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      return [];
+    }
+    const data = docSnap.data();
+    return (data?.tabs || []) as Array<{ id: string; label: string }>;
+  } catch (error) {
+    console.error("Error in getCustomTabs:", error);
+    return [];
+  }
+}
+
+export async function addCustomTab(tab: { label: string }) {
+  try {
+    const ownerId = await getUserId();
+    const docRef = adminDb.collection("crm_settings").doc(`custom_tabs_${ownerId}`);
+    const docSnap = await docRef.get();
+    
+    const newTab = {
+      id: `tab_${Date.now()}`,
+      label: tab.label,
+    };
+
+    if (!docSnap.exists) {
+      await docRef.set({ tabs: [newTab] });
+    } else {
+      const data = docSnap.data();
+      const tabs = data?.tabs || [];
+      await docRef.update({ tabs: [...tabs, newTab] });
+    }
+    return { success: true, tab: newTab };
+  } catch (error: any) {
+    console.error("Error in addCustomTab:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateCustomTab(id: string, label: string) {
+  try {
+    const ownerId = await getUserId();
+    const docRef = adminDb.collection("crm_settings").doc(`custom_tabs_${ownerId}`);
+    const docSnap = await docRef.get();
+    
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      const tabs = (data?.tabs || []).map((t: any) => t.id === id ? { ...t, label } : t);
+      await docRef.update({ tabs });
+    }
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in updateCustomTab:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteCustomTab(id: string) {
+  try {
+    const ownerId = await getUserId();
+    const docRef = adminDb.collection("crm_settings").doc(`custom_tabs_${ownerId}`);
+    const docSnap = await docRef.get();
+    
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      const tabs = (data?.tabs || []).filter((t: any) => t.id !== id);
+      await docRef.update({ tabs });
+    }
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in deleteCustomTab:", error);
+    return { success: false, error: error.message };
   }
 }
 

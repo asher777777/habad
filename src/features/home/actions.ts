@@ -115,6 +115,7 @@ export interface HomePageConfig {
     anchorId?: string;
     backgroundColor?: string;
     hoverColor?: string;
+    backgroundOpacity?: number;
   };
   richContent?: {
     visible: boolean;
