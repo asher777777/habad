@@ -2,6 +2,8 @@ import { getAllServices } from "@/features/services/actions";
 import { ServiceForm } from "./ServiceForm";
 import { ServiceListClient } from "./ServiceListClient";
 
+export const dynamic = 'force-dynamic';
+
 export default async function ServicesDashboardPage() {
   const services = await getAllServices();
 

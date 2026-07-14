@@ -6,11 +6,14 @@ import { Button } from "@/components/ui/Button";
 import { ExternalLink, Edit, Layout, Sparkles, Trash2, List as ListIcon, Grid, Eye, MousePointerClick, ShoppingCart, Loader2 } from "lucide-react";
 import { deleteServicePage } from "@/features/services/actions";
 
+import { useRouter } from "next/navigation";
+
 interface ServiceListClientProps {
   initialServices: any[];
 }
 
 export function ServiceListClient({ initialServices }: ServiceListClientProps) {
+  const router = useRouter();
   const [services, setServices] = useState(initialServices);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -28,6 +31,7 @@ export function ServiceListClient({ initialServices }: ServiceListClientProps) {
       const result = await deleteServicePage(slug, type);
       if (result?.success) {
         setServices(prev => prev.filter(s => s.slug !== slug));
+        router.refresh();
       } else {
         alert("שגיאה במחיקת העמוד: " + (result?.error || "שגיאה לא ידועה"));
       }

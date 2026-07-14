@@ -31,7 +31,10 @@ export default function AnalyticsDashboardPage() {
   const [filterForm, setFilterForm] = useState("");
   const [activeMetricFilter, setActiveMetricFilter] = useState<string | null>(null);
   const [activeTabFilter, setActiveTabFilter] = useState<string | null>(null);
-  const [requiredDataColumns, setRequiredDataColumns] = useState<string[]>([]);
+  const [columnDataFilters, setColumnDataFilters] = useState<Record<string, 'all' | 'has_data' | 'no_data'>>({});
+  const [showRowNumbering, setShowRowNumbering] = useState(true);
+  const [showRowCheckboxes, setShowRowCheckboxes] = useState(true);
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [showColumnsMenu, setShowColumnsMenu] = useState(false);
   const [showSummaries, setShowSummaries] = useState(false);
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc'|'desc'} | null>(null);
@@ -93,11 +96,7 @@ export default function AnalyticsDashboardPage() {
     );
   };
 
-  const toggleRequiredColumn = (col: string) => {
-    setRequiredDataColumns(prev => 
-      prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
-    );
-  };
+
 
   const getColumnLabel = (col: string) => {
     // English to Hebrew common fields map
@@ -265,13 +264,16 @@ export default function AnalyticsDashboardPage() {
         if (!c[activeMetricFilter] || Number(c[activeMetricFilter]) === 0) return false;
     }
 
-    if (requiredDataColumns.length > 0) {
-      // If ANY of the required columns is empty, hide the row
-      const isMissingData = requiredDataColumns.some(col => {
-        const val = c[col];
-        return val === null || val === undefined || val === "" || val === 0 || val === "0";
-      });
-      if (isMissingData) return false;
+    // Apply column-level data filter (All / Has Data / No Data)
+    for (const col of selectedColumns) {
+      const filterVal = columnDataFilters[col] || 'all';
+      if (filterVal === 'all') continue;
+      
+      const val = c[col];
+      const isEmpty = val === null || val === undefined || val === "" || val === 0 || val === "0";
+      
+      if (filterVal === 'has_data' && isEmpty) return false;
+      if (filterVal === 'no_data' && !isEmpty) return false;
     }
 
     if (activeTabFilter) {
@@ -287,17 +289,60 @@ export default function AnalyticsDashboardPage() {
   const processedContacts = useMemo(() => {
     let result = filteredContacts;
     if (sortConfig) {
+      const isDate = (val: any) => {
+        if (val instanceof Date) return true;
+        if (typeof val === 'string') {
+          return /^\d{4}-\d{2}-\d{2}/.test(val) || 
+                 /^\d{2}\/\d{2}\/\d{4}/.test(val) || 
+                 (!isNaN(Date.parse(val)) && isNaN(Number(val)));
+        }
+        return false;
+      };
+      
+      const parseDate = (val: any) => {
+        if (val instanceof Date) return val.getTime();
+        if (typeof val === 'string') {
+          if (/^\d{2}\/\d{2}\/\d{4}/.test(val)) {
+            const [d, m, y] = val.split('/').map(Number);
+            return new Date(y, m - 1, d).getTime();
+          }
+          const parsed = Date.parse(val);
+          return isNaN(parsed) ? 0 : parsed;
+        }
+        return 0;
+      };
+      
+      const parseNum = (val: any) => {
+        if (typeof val === 'number') return val;
+        if (val === true) return 1;
+        if (val === false) return 0;
+        const cleanStr = String(val).replace(/[^0-9.-]/g, '');
+        const num = Number(cleanStr);
+        return isNaN(num) || cleanStr === "" ? null : num;
+      };
+
       result = [...result].sort((a: any, b: any) => {
         let valA = a[sortConfig.key];
         let valB = b[sortConfig.key];
         
         if (valA === undefined || valA === null) valA = "";
         if (valB === undefined || valB === null) valB = "";
-        
-        if (typeof valA === "number" && typeof valB === "number") {
-          return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
+
+        // 1. Sort by Date / Time
+        if (isDate(valA) && isDate(valB)) {
+          const timeA = parseDate(valA);
+          const timeB = parseDate(valB);
+          return sortConfig.direction === 'asc' ? timeA - timeB : timeB - timeA;
         }
 
+        // 2. Sort by numbers (from smallest to largest / min to max)
+        const numA = parseNum(valA);
+        const numB = parseNum(valB);
+        if (numA !== null && numB !== null) {
+          return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
+        }
+
+        // 3. Sort by Alphabet / Hebrew (A-Z)
         const strA = String(valA).toLowerCase();
         const strB = String(valB).toLowerCase();
 
@@ -697,6 +742,31 @@ export default function AnalyticsDashboardPage() {
               הצג שורת סיכומים
             </label>
 
+            <label className="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 px-3 h-10 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">
+              <input 
+                type="checkbox"
+                checked={showRowNumbering}
+                onChange={() => {
+                  setShowRowNumbering(!showRowNumbering);
+                }}
+                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              הצג מיספור שורות
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 px-3 h-10 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">
+              <input 
+                type="checkbox"
+                checked={showRowCheckboxes}
+                onChange={() => {
+                  setShowRowCheckboxes(!showRowCheckboxes);
+                  setSelectedRowIds([]);
+                }}
+                className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-500"
+              />
+              הצג תיבות בחירה
+            </label>
+
             <Button 
               onClick={exportToCsv}
               variant="outline" 
@@ -764,10 +834,63 @@ export default function AnalyticsDashboardPage() {
           </div>
         </div>
 
+        {selectedRowIds.length > 0 && (
+          <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex justify-between items-center gap-4 text-xs font-bold text-indigo-900 mb-6 animate-in fade-in slide-in-from-top-1 print:hidden">
+            <span className="text-sm font-bold text-indigo-750">נבחרו {selectedRowIds.length} רשומות מתוך {processedContacts.length}</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!window.confirm(`האם אתה בטוח שברצונך למחוק את ${selectedRowIds.length} אנשי הקשר שנבחרו?`)) return;
+                  try {
+                    await handleBulkAction(selectedRowIds, "trash");
+                    setSelectedRowIds([]);
+                    loadData();
+                  } catch (error: any) {
+                    alert("שגיאה במחיקת הרשומות: " + error.message);
+                  }
+                }}
+                className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                מחק רשומות שנבחרו
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedRowIds([])}
+                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2 rounded-xl cursor-pointer transition-colors"
+              >
+                ביטול בחירה
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full text-sm text-right">
             <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
               <tr>
+                {showRowCheckboxes && (
+                  <th className="px-4 py-3 text-center align-top w-10 whitespace-nowrap">
+                    <input 
+                      type="checkbox"
+                      checked={processedContacts.length > 0 && selectedRowIds.length === processedContacts.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedRowIds(processedContacts.map(c => c.id || ""));
+                        } else {
+                          setSelectedRowIds([]);
+                        }
+                      }}
+                      className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                    />
+                  </th>
+                )}
+                {showRowNumbering && (
+                  <th className="px-4 py-3 text-right align-top w-12 text-xs font-bold text-slate-500">
+                    #
+                  </th>
+                )}
                 {selectedColumns.map(col => (
                   <th key={col} className="px-4 py-3 whitespace-nowrap align-top">
                     <div className="flex flex-col gap-3">
@@ -783,15 +906,20 @@ export default function AnalyticsDashboardPage() {
                         )}
                         <span>{getColumnLabel(col)}</span>
                       </button>
-                      <label className="flex items-center justify-end gap-1.5 cursor-pointer text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors">
-                        הצג רק עם נתון
-                        <input 
-                          type="checkbox"
-                          checked={requiredDataColumns.includes(col)}
-                          onChange={() => toggleRequiredColumn(col)}
-                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3 h-3"
-                        />
-                      </label>
+                      <div className="w-full mt-1">
+                        <select
+                          value={columnDataFilters[col] || 'all'}
+                          onChange={(e) => {
+                            const val = e.target.value as 'all' | 'has_data' | 'no_data';
+                            setColumnDataFilters(prev => ({ ...prev, [col]: val }));
+                          }}
+                          className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600 focus:ring-1 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
+                        >
+                          <option value="all">הצג הכל</option>
+                          <option value="has_data">עם נתון בלבד</option>
+                          <option value="no_data">ללא נתון בלבד</option>
+                        </select>
+                      </div>
                     </div>
                   </th>
                 ))}
@@ -800,6 +928,8 @@ export default function AnalyticsDashboardPage() {
               
               {showSummaries && filteredContacts.length > 0 && (
                 <tr className="bg-indigo-50/40 border-t border-indigo-100 shadow-inner">
+                  {showRowCheckboxes && <th className="px-4 py-3"></th>}
+                  {showRowNumbering && <th className="px-4 py-3"></th>}
                   {selectedColumns.map(col => {
                     let sum = 0;
                     let count = 0;
@@ -841,17 +971,40 @@ export default function AnalyticsDashboardPage() {
               )}
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {processedContacts.slice(0, 50).map((contact: any, idx: number) => (
-                <tr key={contact.id || idx} className="hover:bg-slate-50 transition-colors">
-                  {selectedColumns.map(col => {
-                    const val = contact[col];
-                    return (
-                      <td key={col} className="px-4 py-3 text-slate-700 max-w-[200px] truncate" title={String(val || "")}>
-                        {val === true ? "כן" : val === false ? "לא" : String(val || "-")}
+              {processedContacts.slice(0, 50).map((contact: any, idx: number) => {
+                const isSelected = selectedRowIds.includes(contact.id || "");
+                return (
+                  <tr key={contact.id || idx} className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-indigo-50/20' : ''}`}>
+                    {showRowCheckboxes && (
+                      <td className="px-4 py-3 text-center w-10 whitespace-nowrap">
+                        <input 
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedRowIds(prev => [...prev, contact.id || ""]);
+                            } else {
+                              setSelectedRowIds(prev => prev.filter(id => id !== (contact.id || "")));
+                            }
+                          }}
+                          className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                        />
                       </td>
-                    );
-                  })}
-                  <td className="px-4 py-3 flex items-center justify-center gap-2 print:hidden">
+                    )}
+                    {showRowNumbering && (
+                      <td className="px-4 py-3 text-right text-slate-400 font-mono text-xs w-12">
+                        {idx + 1}
+                      </td>
+                    )}
+                    {selectedColumns.map(col => {
+                      const val = contact[col];
+                      return (
+                        <td key={col} className="px-4 py-3 text-slate-700 max-w-[200px] truncate" title={String(val || "")}>
+                          {val === true ? "כן" : val === false ? "לא" : String(val || "-")}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 flex items-center justify-center gap-2 print:hidden">
                     <button 
                       onClick={(e) => handleEditClick(contact.id, e)}
                       className="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-500 transition-colors"
@@ -868,10 +1021,11 @@ export default function AnalyticsDashboardPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              );
+            })}
               {processedContacts.length > 50 && (
                 <tr>
-                  <td colSpan={selectedColumns.length + 1} className="px-4 py-4 text-center text-slate-500 bg-slate-50 font-medium">
+                  <td colSpan={selectedColumns.length + 1 + (showRowCheckboxes ? 1 : 0) + (showRowNumbering ? 1 : 0)} className="px-4 py-4 text-center text-slate-500 bg-slate-50 font-medium">
                     מוצגות 50 הרשומות הראשונות (מתוך {processedContacts.length}). סנן נתונים כדי למצוא רשומות ספציפיות.
                   </td>
                 </tr>

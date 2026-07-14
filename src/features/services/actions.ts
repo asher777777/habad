@@ -69,9 +69,9 @@ export async function saveServicePage(slug: string, content: any) {
   }
 }
 
-export async function incrementPageView(slug: string) {
+export async function incrementPageView(slug: string, collectionName: string = "services") {
   try {
-    const serviceRef = adminDb.collection("services").doc(slug);
+    const serviceRef = adminDb.collection(collectionName).doc(slug);
     await serviceRef.set({
       views: FieldValue.increment(1)
     }, { merge: true });

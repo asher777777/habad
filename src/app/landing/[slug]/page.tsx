@@ -44,7 +44,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
 
   return (
     <>
-      <PageViewTracker slug={resolvedParams.slug} />
+      <PageViewTracker slug={resolvedParams.slug} collectionName="landing" />
       <HomeClient initialConfig={page} initialGlobalSettings={globalSettings} collectionName="landing" pageId={resolvedParams.slug} />
     </>
   );
