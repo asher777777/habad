@@ -184,3 +184,64 @@ export async function getCRMAnalytics(params: {
     };
   }
 }
+
+export async function getFormSubmissionsAnalytics(params: {
+  startDate?: string;
+  endDate?: string;
+}) {
+  try {
+    const ownerId = await getUserId();
+    const formsRef = adminDb.collection("form_submissions");
+    
+    let query: any = formsRef.where("ownerId", "==", ownerId);
+      
+    const snapshot = await query.get();
+    let submissions = snapshot.docs.map((doc: any) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    // Filter by date range
+    if (params.startDate || params.endDate) {
+      submissions = submissions.filter((s: any) => {
+        const dStr = s.submissionDate;
+        if (!dStr) return true;
+        const date = new Date(dStr);
+        if (params.startDate && new Date(params.startDate) > date) return false;
+        if (params.endDate) {
+          const end = new Date(params.endDate);
+          end.setHours(23, 59, 59, 999);
+          if (end < date) return false;
+        }
+        return true;
+      });
+    }
+
+    // Flatten payload into top-level properties so the table can render them natively
+    const flattenedSubmissions = submissions.map((s: any) => {
+      const { payload, ...rest } = s;
+      return {
+        ...rest,
+        ...(payload || {})
+      };
+    });
+
+    const safeSubmissions = JSON.parse(JSON.stringify(flattenedSubmissions));
+
+    return {
+      totalSubmissions: safeSubmissions.length,
+      formsCount: safeSubmissions.reduce((acc: Record<string, number>, s: any) => {
+        const formName = s.formName || "לא ידוע";
+        acc[formName] = (acc[formName] || 0) + 1;
+        return acc;
+      }, {}),
+      submissions: safeSubmissions,
+    };
+
+  } catch (error: any) {
+    console.error("Error in getFormSubmissionsAnalytics server action:", error);
+    return {
+      error: error.message || String(error)
+    };
+  }
+}

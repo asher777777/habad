@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { getCRMAnalytics } from "@/features/crm/analyticsActions";
+import { getCRMAnalytics, getFormSubmissionsAnalytics } from "@/features/crm/analyticsActions";
+import { updateRecordField } from "@/features/crm/updateAction";
 import { getContactById, handleBulkAction } from "@/features/crm/actions";
 import { ContactModal } from "../ContactModal";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +22,7 @@ export default function AnalyticsDashboardPage() {
   const [endDate, setEndDate] = useState<string>("");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<any | null>(null);
+  const [dataSource, setDataSource] = useState<"contacts" | "forms">("contacts");
   
   // New States for Advanced Filtering & Dynamic Table
   const [showGraphs, setShowGraphs] = useState(false);
@@ -37,7 +39,10 @@ export default function AnalyticsDashboardPage() {
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [showColumnsMenu, setShowColumnsMenu] = useState(false);
   const [showSummaries, setShowSummaries] = useState(false);
+  const [splitChildrenRows, setSplitChildrenRows] = useState(false);
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc'|'desc'} | null>(null);
+  const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
   
   const [data, setData] = useState<{
     totalContacts: number;
@@ -66,22 +71,74 @@ export default function AnalyticsDashboardPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await getCRMAnalytics({ startDate, endDate });
-      if ((result as any).error) {
-        alert("שגיאה בטעינת הנתונים: " + (result as any).error);
+      if (dataSource === "contacts") {
+        const result = await getCRMAnalytics({ startDate, endDate });
+        if ((result as any).error) {
+          alert("שגיאה בטעינת הנתונים: " + (result as any).error);
+        } else {
+          setData(result as any);
+        }
       } else {
-        setData(result as any);
+        const result = await getFormSubmissionsAnalytics({ startDate, endDate });
+        if ((result as any).error) {
+          alert("שגיאה בטעינת הנתונים: " + (result as any).error);
+        } else {
+          setData({
+            totalContacts: (result as any).totalSubmissions,
+            totalSpent: 0,
+            tagsCount: {},
+            leadSourcesCount: {},
+            formsCount: (result as any).formsCount,
+            numericFieldsAgg: {},
+            textFieldsAgg: {},
+            contacts: (result as any).submissions,
+            customFields: []
+          });
+        }
       }
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, dataSource]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Dynamically adjust columns when a form is selected
+  useEffect(() => {
+    if (filterForm && data) {
+      const formContacts = data.contacts.filter((c: any) => 
+        c.formName === filterForm || c.last_form_name === filterForm || (c.form_submissions || []).some((fs: any) => fs.name === filterForm)
+      );
+      
+      if (formContacts.length > 0) {
+        const formKeys = new Set<string>();
+        formContacts.forEach((c: any) => {
+          Object.keys(c).forEach(k => {
+            if (c[k] !== null && c[k] !== undefined && c[k] !== "" && !["id", "ownerId", "events", "form_submissions", "children", "status", "createdAt", "updatedAt", "child_first_name", "child_last_name", "child_grade", "child_id_number"].includes(k)) {
+              formKeys.add(k);
+            }
+          });
+          if (c.children && Array.isArray(c.children)) {
+            c.children.forEach((child: any) => {
+              Object.keys(child).forEach(k => {
+                if (child[k] !== null && child[k] !== undefined && child[k] !== "" && k !== "id") {
+                  formKeys.add(k);
+                }
+              });
+            });
+          }
+        });
+        
+        const baseColumns = ["conta_name", "conta_phone", "total_spent", "order_count", "last_order_date"];
+        const newColumns = Array.from(new Set([...baseColumns, ...Array.from(formKeys)]));
+        setSelectedColumns(newColumns);
+      }
+    }
+  }, [filterForm, data]);
 
   // Formats data for Recharts Pie/Bar
   const formatForChart = (record: Record<string, number>) => {
@@ -105,15 +162,44 @@ export default function AnalyticsDashboardPage() {
       "conta_phone": "טלפון",
       "f_m": "שם פרטי",
       "email": "אימייל",
+      "gender": "מין",
       "mh_crm_city": "עיר",
+      "mh_crm_street": "רחוב",
+      "company_name": "שם חברה",
+      "job_title": "תפקיד",
+      "work_phone": "טלפון בעבודה",
+      "website": "אתר אינטרנט",
+      "birth_date": "תאריך לידה",
+      "status": "סטטוס",
       "total_spent": "סך הוצאות",
       "order_count": "כמות הזמנות",
+      "last_order_date": "תאריך הזמנה אחרונה",
       "lead_source": "מקור הגעה",
       "tg1": "תגית 1",
       "tg2": "תגית 2",
       "tg3": "תגית 3",
       "last_form_name": "טופס אחרון",
+      "last_form_page": "עמוד טופס אחרון",
+      "last_form_submission_date": "תאריך מילוי טופס אחרון",
+      "last_message_read_status": "סטטוס קריאת הודעה אחרונה",
       "notes": "הערות",
+      "first_name": "שם הילד",
+      "last_name": "משפחת הילד",
+      "grade": "כיתה/גן",
+      "id_number": "ת.ז. ילד",
+      "allergies_has": "יש רגישות?",
+      "allergies_details": "פירוט רגישות",
+      "health_declaration": "הצהרת בריאות",
+      "child_first_name": "שם הילד (ראשי)",
+      "child_last_name": "משפחת הילד (ראשי)",
+      "child_grade": "כיתה/גן (ראשי)",
+      "child_id_number": "ת.ז. ילד (ראשי)",
+      "father_name": "שם האב",
+      "mother_name": "שם האם",
+      "father_phone": "טלפון האב",
+      "mother_phone": "טלפון האם",
+      "createdAt": "תאריך יצירה",
+      "updatedAt": "תאריך עדכון",
     };
     if (map[col]) return map[col];
     
@@ -128,7 +214,8 @@ export default function AnalyticsDashboardPage() {
   const handleEditClick = async (contactId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const contact = await getContactById(contactId);
+      const realId = contactId.includes('_child_') ? contactId.split('_child_')[0] : contactId;
+      const contact = await getContactById(realId);
       setSelectedContact(contact);
       setModalOpen(true);
     } catch (error: any) {
@@ -138,7 +225,13 @@ export default function AnalyticsDashboardPage() {
 
   const handleDeleteClick = async (contactId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm("האם אתה בטוח שברצונך להעביר איש קשר זה לסל האשפה?")) return;
+    const isChildRow = contactId.includes('_child_');
+    if (isChildRow) {
+      alert("כדי למחוק רק את הילד הזה, לחץ על סמל העריכה (העיפרון), גלול ללשונית 'משפחה וקייטנה', ומחק אותו משם.");
+      return;
+    }
+    
+    if (!window.confirm("האם אתה בטוח שברצונך להעביר איש קשר זה לסל האשפה? (כל הילדים שלו יימחקו גם כן)")) return;
     try {
       await handleBulkAction([contactId], "trash");
       loadData(); // רענון הנתונים
@@ -152,7 +245,37 @@ export default function AnalyticsDashboardPage() {
     setModalOpen(true);
   };
 
-
+  const handleSaveEdit = async () => {
+    if (!editingCell) return;
+    try {
+      const res = await updateRecordField(dataSource, editingCell.id, editingCell.field, editValue);
+      if (!res.success) throw new Error(res.error);
+      
+      // Update local data state
+      setData(prev => {
+        if (!prev) return prev;
+        const newContacts = prev.contacts.map(c => {
+          if (c.id === editingCell.id) {
+            if (dataSource === "forms") {
+              const topLevelFields = ["contactId", "ownerId", "formName", "formPage", "submissionDate", "isMigrated"];
+              if (topLevelFields.includes(editingCell.field)) {
+                return { ...c, [editingCell.field]: editValue };
+              } else {
+                return { ...c, [editingCell.field]: editValue, payload: { ...(c.payload || {}), [editingCell.field]: editValue } };
+              }
+            } else {
+              return { ...c, [editingCell.field]: editValue };
+            }
+          }
+          return c;
+        });
+        return { ...prev, contacts: newContacts };
+      });
+      setEditingCell(null);
+    } catch (error: any) {
+      alert("שגיאה בעדכון השדה: " + error.message);
+    }
+  };
 
   const tabFilters = useMemo(() => {
     if (!data) return [];
@@ -162,10 +285,15 @@ export default function AnalyticsDashboardPage() {
         label: "קייטנה",
         icon: Users,
         filterFn: (c: any, customFields: any[]) => {
+          if (c.tg1 === "קייטנה_תשסו") return true;
+          if (c.tg2 === "שולם קייטנה" || c.tg2 === "ממתין לתשלום קייטנה") return true;
+          if (c.events && Array.isArray(c.events) && c.events.some((e: any) => e.title?.includes("קייטנה") || e.title?.includes("הבטיחו את מקום"))) return true;
+          if (c.form_submissions && Array.isArray(c.form_submissions) && c.form_submissions.some((fs: any) => fs.name?.includes("קייטנה") || fs.name?.includes("הבטיחו את מקום"))) return true;
+          if (c.last_form_name && (c.last_form_name.includes("קייטנה") || c.last_form_name.includes("הבטיחו את מקום"))) return true;
+          
           const campFields = [
             "child_first_name", "child_last_name", "child_grade", "child_id_number",
-            "allergies_has", "allergies_details", "father_name", "mother_name",
-            "father_phone", "mother_phone"
+            "שם פרטי של הילד", "שם משפחה", "עולה לכיתה"
           ];
           const hasBase = campFields.some(
             field => c[field] !== null && c[field] !== undefined && c[field] !== ""
@@ -254,6 +382,17 @@ export default function AnalyticsDashboardPage() {
     ];
   }, [data]);
 
+  const getContactValue = (c: any, col: string) => {
+    let val = c[col];
+    if (val === undefined || val === null || val === "") {
+      if (col === "first_name") val = c["child_first_name"];
+      else if (col === "last_name") val = c["child_last_name"];
+      else if (col === "grade") val = c["child_grade"];
+      else if (col === "id_number") val = c["child_id_number"];
+    }
+    return val;
+  };
+
   const filteredContacts = data ? data.contacts.filter((c: any) => {
     if (filterSource && c.lead_source !== filterSource && c.mh_crm_city !== filterSource) return false;
     if (filterTag && c.tg1 !== filterTag && c.tg2 !== filterTag && c.tg3 !== filterTag) return false;
@@ -269,7 +408,7 @@ export default function AnalyticsDashboardPage() {
       const filterVal = columnDataFilters[col] || 'all';
       if (filterVal === 'all') continue;
       
-      const val = c[col];
+      const val = getContactValue(c, col);
       const isEmpty = val === null || val === undefined || val === "" || val === 0 || val === "0";
       
       if (filterVal === 'has_data' && isEmpty) return false;
@@ -288,6 +427,33 @@ export default function AnalyticsDashboardPage() {
 
   const processedContacts = useMemo(() => {
     let result = filteredContacts;
+    
+    if (splitChildrenRows) {
+      const flattened: any[] = [];
+      result.forEach((c: any) => {
+        if (c.children && Array.isArray(c.children) && c.children.length > 0) {
+          c.children.forEach((child: any, idx: number) => {
+            flattened.push({
+              ...c,
+              ...child,
+              id: `${c.id}_child_${idx}`,
+              parentId: c.id,
+              isChildRow: true,
+            });
+          });
+        } else {
+          flattened.push({
+            ...c,
+            first_name: c.first_name || c.child_first_name || c["שם פרטי של הילד"] || "",
+            last_name: c.last_name || c.child_last_name || c["שם משפחה"] || "",
+            grade: c.grade || c.child_grade || c["עולה לכיתה"] || "",
+            id_number: c.id_number || c.child_id_number || c["תעודת זהות"] || ""
+          });
+        }
+      });
+      result = flattened;
+    }
+
     if (sortConfig) {
       const isDate = (val: any) => {
         if (val instanceof Date) return true;
@@ -393,28 +559,26 @@ export default function AnalyticsDashboardPage() {
   };
 
   const exportToCsv = () => {
-    if (!filteredContacts || filteredContacts.length === 0) return;
+    if (!processedContacts || processedContacts.length === 0) return;
     
     // Create headers
     const headers = selectedColumns.map(col => getColumnLabel(col));
     
     // Create rows
-    const rows = filteredContacts.map((contact: any) => {
+    const rows = processedContacts.map((contact: any) => {
       return selectedColumns.map(col => {
-        let val = contact[col];
-        if (val === true) val = "כן";
-        if (val === false) val = "לא";
-        if (val === null || val === undefined) val = "";
+        let val = getContactValue(contact, col);
+        const formattedVal = formatCellValue(val);
         
         // Escape quotes and wrap in quotes for CSV
-        const stringVal = String(val).replace(/"/g, '""');
+        const stringVal = String(formattedVal).replace(/"/g, '""');
         return `"${stringVal}"`;
       });
     });
     
     // Add BOM for Hebrew Excel support
-    const BOM = "\\uFEFF";
-    const csvContent = BOM + [headers.join(","), ...rows.map(row => row.join(","))].join("\\n");
+    const BOM = "\uFEFF";
+    const csvContent = BOM + [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
     
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -426,25 +590,64 @@ export default function AnalyticsDashboardPage() {
     document.body.removeChild(link);
   };
 
-  const allAvailableColumns = Array.from(new Set(data?.contacts.flatMap((c: any) => Object.keys(c)) || []))
-    .filter(k => !["id", "ownerId", "events", "form_submissions", "children"].includes(k));
+  const allAvailableColumns = Array.from(new Set(
+    (data?.contacts.flatMap((c: any) => {
+      const keys = Object.keys(c);
+      if (c.children && Array.isArray(c.children)) {
+        c.children.forEach((child: any) => {
+          keys.push(...Object.keys(child));
+        });
+      }
+      return keys;
+    }) || [])
+  )).filter(k => !["id", "parentId", "isChildRow", "ownerId", "events", "form_submissions", "children", "child_first_name", "child_last_name", "child_grade", "child_id_number"].includes(k));
 
   const tagsData = formatForChart(data.tagsCount);
   const formsData = formatForChart(data.formsCount);
   const sourcesData = formatForChart(data.leadSourcesCount);
 
+  const formatCellValue = (val: any) => {
+    if (val === true) return "כן";
+    if (val === false) return "לא";
+    if (val === null || val === undefined || val === "") return "-";
+    
+    if (typeof val === 'string') {
+      const isIso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val);
+      const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(val);
+      if (isIso || isDateOnly) {
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString("he-IL", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: isIso ? "2-digit" : undefined,
+            minute: isIso ? "2-digit" : undefined,
+          });
+        }
+      }
+    }
+    
+    return String(val);
+  };
+
   return (
     <div className="space-y-8 text-right" dir="rtl">
-      {/* Header & Date Filters */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm print:hidden">
-        <div className="flex-grow">
-          <h2 className="text-3xl font-black text-slate-800 flex items-center gap-2">
-            <TrendingUp className="w-8 h-8 text-indigo-600" />
-            לוח בקרה ואנליטיקה
-          </h2>
-          <p className="text-muted-foreground text-sm mt-1">
-            צפה בסיכומים, סנן נתונים ובנה דוחות מותאמים אישית
-          </p>
+      {/* Header & Data Source Toggle */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm print:hidden">
+        <div className="flex bg-slate-100 p-1 rounded-2xl h-14">
+          <button
+            onClick={() => { setDataSource("contacts"); setFilterForm(""); }}
+            className={`flex-1 rounded-xl font-bold px-6 transition-all ${dataSource === "contacts" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+          >
+            אנשי קשר
+          </button>
+          <button
+            onClick={() => { setDataSource("forms"); setFilterForm(""); }}
+            className={`flex-1 rounded-xl font-bold px-6 transition-all ${dataSource === "forms" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+          >
+            הגשות טפסים
+          </button>
         </div>
         
         <div className="flex items-end gap-3 flex-wrap">
@@ -510,6 +713,68 @@ export default function AnalyticsDashboardPage() {
         </div>
       </div>
 
+      {/* Metric Cards - Clickable Filters (Moved above filters drawer) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+        <div 
+          onClick={() => { setDataSource("contacts"); setFilterForm(""); setActiveMetricFilter(null); }}
+          className={`bg-white rounded-3xl p-6 shadow-sm flex items-center gap-4 cursor-pointer transition-all ${dataSource === 'contacts' && !filterForm ? 'ring-2 ring-indigo-500 bg-indigo-50/50' : 'border border-slate-100 hover:shadow-md'}`}
+        >
+          <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
+            <Users className="w-7 h-7 text-indigo-600" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-500">סה"כ אנשי קשר</p>
+            <h3 className="text-3xl font-black text-slate-800">{dataSource === 'contacts' ? data.totalContacts.toLocaleString() : "-"}</h3>
+          </div>
+        </div>
+        
+        <div 
+          onClick={() => setActiveMetricFilter(activeMetricFilter === 'has_spent' ? null : 'has_spent')}
+          className={`bg-white rounded-3xl p-6 shadow-sm flex items-center gap-4 cursor-pointer transition-all ${activeMetricFilter === 'has_spent' ? 'ring-2 ring-emerald-500 bg-emerald-50/50' : 'border border-slate-100 hover:shadow-md'}`}
+        >
+          <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center shrink-0">
+            <TrendingUp className="w-7 h-7 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-500">סך הכנסות (₪)</p>
+            <h3 className="text-3xl font-black text-slate-800">₪{data.totalSpent.toLocaleString()}</h3>
+          </div>
+        </div>
+        
+        {/* Render top custom numeric fields dynamically as cards if they exist */}
+        {Object.entries(data.numericFieldsAgg).slice(0, 1).map(([key, agg]) => {
+          const isActive = activeMetricFilter === key;
+          return (
+            <div 
+              key={key} 
+              onClick={() => setActiveMetricFilter(isActive ? null : key)}
+              className={`bg-white rounded-3xl p-6 shadow-sm flex items-center gap-4 cursor-pointer transition-all ${isActive ? 'ring-2 ring-amber-500 bg-amber-50/50' : 'border border-slate-100 hover:shadow-md'}`}
+            >
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600`}>
+                <List className="w-7 h-7" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-500 truncate max-w-[120px]" title={key}>{key}</p>
+                <h3 className="text-3xl font-black text-slate-800">{agg.sum.toLocaleString()}</h3>
+              </div>
+            </div>
+          );
+        })}
+
+        <div 
+          onClick={() => { setDataSource("forms"); setFilterForm(""); setActiveMetricFilter(null); }}
+          className={`bg-white rounded-3xl p-6 shadow-sm flex items-center gap-4 cursor-pointer transition-all ${dataSource === 'forms' && !filterForm ? 'ring-2 ring-pink-500 bg-pink-50/50' : 'border border-slate-100 hover:shadow-md'}`}
+        >
+          <div className="w-14 h-14 rounded-2xl bg-pink-50 flex items-center justify-center shrink-0">
+            <List className="w-7 h-7 text-pink-600" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-500">הגשות טפסים</p>
+            <h3 className="text-3xl font-black text-slate-800">{Object.values(data.formsCount).reduce((a, b) => a + b, 0).toLocaleString()}</h3>
+          </div>
+        </div>
+      </div>
+
       {/* Advanced Filters Drawer/Section */}
       {showFilters && (
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-top-4 fade-in print:hidden">
@@ -549,54 +814,6 @@ export default function AnalyticsDashboardPage() {
         </div>
       )}
 
-      {/* Metric Cards - Clickable Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
-        <div 
-          onClick={() => setActiveMetricFilter(activeMetricFilter === 'all' ? null : 'all')}
-          className={`bg-white rounded-3xl p-6 shadow-sm flex items-center gap-4 cursor-pointer transition-all ${activeMetricFilter === 'all' ? 'ring-2 ring-indigo-500 bg-indigo-50/50' : 'border border-slate-100 hover:shadow-md'}`}
-        >
-          <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
-            <Users className="w-7 h-7 text-indigo-600" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">סה"כ אנשי קשר</p>
-            <h3 className="text-3xl font-black text-slate-800">{data.totalContacts.toLocaleString()}</h3>
-          </div>
-        </div>
-        
-        <div 
-          onClick={() => setActiveMetricFilter(activeMetricFilter === 'has_spent' ? null : 'has_spent')}
-          className={`bg-white rounded-3xl p-6 shadow-sm flex items-center gap-4 cursor-pointer transition-all ${activeMetricFilter === 'has_spent' ? 'ring-2 ring-emerald-500 bg-emerald-50/50' : 'border border-slate-100 hover:shadow-md'}`}
-        >
-          <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center shrink-0">
-            <TrendingUp className="w-7 h-7 text-emerald-600" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500">סך הכנסות (₪)</p>
-            <h3 className="text-3xl font-black text-slate-800">₪{data.totalSpent.toLocaleString()}</h3>
-          </div>
-        </div>
-        
-        {/* Render top custom numeric fields dynamically as cards if they exist */}
-        {Object.entries(data.numericFieldsAgg).slice(0, 2).map(([key, agg], i) => {
-          const isActive = activeMetricFilter === key;
-          return (
-            <div 
-              key={key} 
-              onClick={() => setActiveMetricFilter(isActive ? null : key)}
-              className={`bg-white rounded-3xl p-6 shadow-sm flex items-center gap-4 cursor-pointer transition-all ${isActive ? 'ring-2 ring-amber-500 bg-amber-50/50' : 'border border-slate-100 hover:shadow-md'}`}
-            >
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${i % 2 === 0 ? 'bg-amber-50 text-amber-600' : 'bg-pink-50 text-pink-600'}`}>
-                <List className="w-7 h-7" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-500 truncate max-w-[120px]" title={key}>{key}</p>
-                <h3 className="text-3xl font-black text-slate-800">{agg.sum.toLocaleString()}</h3>
-              </div>
-            </div>
-          );
-        })}
-      </div>
 
       {/* Tab Quick Filters */}
       <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm print:hidden">
@@ -728,7 +945,7 @@ export default function AnalyticsDashboardPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
             <Users className="w-5 h-5 text-indigo-500" />
-            טבלת נתונים מותאמת אישית ({filteredContacts.length} רשומות)
+            טבלת נתונים מותאמת אישית ({processedContacts.length} רשומות)
           </h3>
           
           <div className="flex items-center gap-4 flex-wrap print:hidden">
@@ -765,6 +982,16 @@ export default function AnalyticsDashboardPage() {
                 className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-500"
               />
               הצג תיבות בחירה
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 px-3 h-10 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">
+              <input 
+                type="checkbox"
+                checked={splitChildrenRows}
+                onChange={() => setSplitChildrenRows(!splitChildrenRows)}
+                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              הצג ילדים בשורות נפרדות
             </label>
 
             <Button 
@@ -935,7 +1162,7 @@ export default function AnalyticsDashboardPage() {
                     let count = 0;
                     let isNumeric = false;
                     filteredContacts.forEach((c: any) => {
-                      const val = c[col];
+                      const val = getContactValue(c, col);
                       if (val !== null && val !== undefined && val !== "") {
                         count++;
                         if (!isNaN(Number(val)) && typeof val !== "boolean") {
@@ -997,10 +1224,37 @@ export default function AnalyticsDashboardPage() {
                       </td>
                     )}
                     {selectedColumns.map(col => {
-                      const val = contact[col];
+                      const val = getContactValue(contact, col);
+                      const isEditing = editingCell?.id === contact.id && editingCell?.field === col;
+                      
                       return (
-                        <td key={col} className="px-4 py-3 text-slate-700 max-w-[200px] truncate" title={String(val || "")}>
-                          {val === true ? "כן" : val === false ? "לא" : String(val || "-")}
+                        <td 
+                          key={col} 
+                          className="px-4 py-3 text-slate-700 max-w-[200px] cursor-pointer hover:bg-slate-100 transition-colors group" 
+                          title={String(val || "")}
+                          onDoubleClick={() => {
+                            setEditingCell({ id: contact.id || "", field: col });
+                            setEditValue(String(val || ""));
+                          }}
+                        >
+                          {isEditing ? (
+                            <input
+                              autoFocus
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleSaveEdit}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveEdit();
+                                if (e.key === 'Escape') setEditingCell(null);
+                              }}
+                              className="w-full border border-indigo-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-sm"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <span className="truncate">{formatCellValue(val)}</span>
+                              <Edit2 className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          )}
                         </td>
                       );
                     })}

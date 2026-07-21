@@ -264,7 +264,7 @@ export function CRMFormRenderer({ config = {} as FormConfig, formId, formTitle }
         }
 
         if (isCashPayment || amount === 0) {
-          await submitCRMForm({
+          const res = await submitCRMForm({
             formId,
             formTitle,
             formType: "payment",
@@ -275,12 +275,16 @@ export function CRMFormRenderer({ config = {} as FormConfig, formId, formTitle }
             status: "ממתין לתשלום (מזומן/העברה)"
           });
           
+          if (!res.success) {
+            throw new Error(res.error || "שגיאה ברישום ל-CRM. ודא שכל השדות שמולאו תקינים.");
+          }
+
           setSuccessMsg("פרטי הרישום התקבלו בהצלחה! הרישום לקייטנה יושלם סופית רק לאחר הסדרת התשלום מול המשרד.");
           setIsSubmitted(true);
           return;
         }
 
-        await submitCRMForm({
+        const res = await submitCRMForm({
           formId,
           formTitle,
           formType: "payment",
@@ -290,6 +294,10 @@ export function CRMFormRenderer({ config = {} as FormConfig, formId, formTitle }
           formConfig: config,
           status: "ממתין לתשלום (אשראי)"
         });
+
+        if (!res.success) {
+          throw new Error(res.error || "שגיאה ברישום ל-CRM, לא ניתן להמשיך לתשלום. ודא שכל השדות שמולאו תקינים.");
+        }
 
         setCheckoutData({ amount, clientName, phone, mail, installments });
         setShowCheckout(true);

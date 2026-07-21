@@ -716,15 +716,36 @@ export async function submitCRMForm(params: {
 
     if (contactId) {
       const updatedEvents = [...(existingData?.events || []), newEvent];
+      const updatedForms = [...(existingData?.form_submissions || []), { name: formTitle, page: params.embeddingPostId || "", date: new Date().toISOString() }];
+      
       await contactsRef.doc(contactId).update({
         ...dbData,
-        events: updatedEvents
+        events: updatedEvents,
+        form_submissions: updatedForms
       });
     } else {
-      await contactsRef.add({
+      const docRef = await contactsRef.add({
         ...dbData,
         createdAt: new Date().toISOString(),
-        events: [newEvent]
+        events: [newEvent],
+        form_submissions: [{ name: formTitle, page: params.embeddingPostId || "", date: new Date().toISOString() }]
+      });
+      contactId = docRef.id;
+    }
+
+    // Save historical independent record
+    if (contactId) {
+      await adminDb.collection("form_submissions").add({
+        contactId,
+        ownerId: finalOwnerId,
+        formName: formTitle,
+        formPage: params.embeddingPostId || "",
+        submissionDate: new Date().toISOString(),
+        payload: {
+          ...formData,
+          amountPaid: finalAmountPaid,
+          status: finalStatus
+        }
       });
     }
 
