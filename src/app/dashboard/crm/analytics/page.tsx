@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { getCRMAnalytics, getFormSubmissionsAnalytics } from "@/features/crm/analyticsActions";
 import { updateRecordField } from "@/features/crm/updateAction";
 import { getContactById, handleBulkAction } from "@/features/crm/actions";
+import { getSavedViews, saveView, deleteSavedView, SavedView } from "@/features/crm/savedViewsActions";
+import * as XLSX from "xlsx";
 import { ContactModal } from "../ContactModal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -43,6 +45,11 @@ export default function AnalyticsDashboardPage() {
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc'|'desc'} | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>("");
+
+  // Saved Views State
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [activeViewId, setActiveViewId] = useState<string | null>(null);
+  const [isSavingView, setIsSavingView] = useState(false);
   
   const [data, setData] = useState<{
     totalContacts: number;
@@ -103,9 +110,18 @@ export default function AnalyticsDashboardPage() {
     }
   }, [startDate, endDate, dataSource]);
 
+  const loadViews = useCallback(async () => {
+    const views = await getSavedViews();
+    setSavedViews(views);
+  }, []);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    loadViews();
+  }, [loadViews]);
 
   // Dynamically adjust columns when a form is selected
   useEffect(() => {
@@ -274,6 +290,70 @@ export default function AnalyticsDashboardPage() {
       setEditingCell(null);
     } catch (error: any) {
       alert("שגיאה בעדכון השדה: " + error.message);
+    }
+  };
+
+  const handleSaveViewClick = async () => {
+    const viewName = window.prompt("הזן שם לתצוגה השמורה (לדוגמה: 'דוח קייטנה מלא'):");
+    if (!viewName || viewName.trim() === "") return;
+    
+    setIsSavingView(true);
+    try {
+      const config = {
+        dataSource,
+        activeTabFilter,
+        filterForm,
+        selectedColumns,
+        sortConfig,
+        showSummaries,
+        showRowNumbering,
+        showRowCheckboxes,
+        splitChildrenRows,
+        columnDataFilters
+      };
+      const res = await saveView(viewName, config);
+      if (res.success) {
+        await loadViews();
+        setActiveViewId(res.id || null);
+        alert("התצוגה נשמרה בהצלחה!");
+      } else {
+        alert("שגיאה בשמירת התצוגה: " + res.error);
+      }
+    } finally {
+      setIsSavingView(false);
+    }
+  };
+
+  const handleApplyView = (viewId: string) => {
+    if (!viewId) {
+      setActiveViewId(null);
+      return;
+    }
+    const view = savedViews.find(v => v.id === viewId);
+    if (!view) return;
+    
+    setActiveViewId(view.id!);
+    setDataSource(view.config.dataSource);
+    setActiveTabFilter(view.config.activeTabFilter);
+    setFilterForm(view.config.filterForm || "");
+    setSelectedColumns(view.config.selectedColumns);
+    setSortConfig(view.config.sortConfig);
+    setShowSummaries(view.config.showSummaries);
+    setShowRowNumbering(view.config.showRowNumbering);
+    setShowRowCheckboxes(view.config.showRowCheckboxes);
+    setSplitChildrenRows(view.config.splitChildrenRows);
+    setColumnDataFilters(view.config.columnDataFilters || {});
+  };
+
+  const handleDeleteView = async (viewId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm("האם אתה בטוח שברצונך למחוק תצוגה שמורה זו?")) return;
+    const res = await deleteSavedView(viewId);
+    if (res.success) {
+      if (activeViewId === viewId) setActiveViewId(null);
+      await loadViews();
+    } else {
+      alert("שגיאה במחיקת התצוגה: " + res.error);
     }
   };
 
@@ -568,26 +648,20 @@ export default function AnalyticsDashboardPage() {
     const rows = processedContacts.map((contact: any) => {
       return selectedColumns.map(col => {
         let val = getContactValue(contact, col);
-        const formattedVal = formatCellValue(val);
-        
-        // Escape quotes and wrap in quotes for CSV
-        const stringVal = String(formattedVal).replace(/"/g, '""');
-        return `"${stringVal}"`;
+        return formatCellValue(val);
       });
     });
     
-    // Add BOM for Hebrew Excel support
-    const BOM = "\uFEFF";
-    const csvContent = BOM + [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+    // Create worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    worksheet['!dir'] = 'rtl'; // RTL support
     
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `דוח_אנשי_קשר_${new Date().toLocaleDateString('he-IL').replaceAll('/', '-')}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "דוח");
+    
+    // Generate file and trigger download
+    XLSX.writeFile(workbook, `דוח_אנשי_קשר_${new Date().toLocaleDateString('he-IL').replaceAll('/', '-')}.xlsx`);
   };
 
   const allAvailableColumns = Array.from(new Set(
@@ -943,10 +1017,49 @@ export default function AnalyticsDashboardPage() {
       {/* Dynamic Contacts Table */}
       <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mt-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
-            <Users className="w-5 h-5 text-indigo-500" />
-            טבלת נתונים מותאמת אישית ({processedContacts.length} רשומות)
-          </h3>
+          <div className="flex flex-col gap-2">
+            <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+              <Users className="w-5 h-5 text-indigo-500" />
+              טבלת נתונים מותאמת אישית ({processedContacts.length} רשומות)
+            </h3>
+            
+            {/* Saved Views Selector */}
+            <div className="flex items-center gap-3 print:hidden">
+              <span className="text-xs font-bold text-slate-500">תצוגות שמורות:</span>
+              <div className="relative flex items-center gap-2">
+                <select 
+                  value={activeViewId || ""}
+                  onChange={(e) => handleApplyView(e.target.value)}
+                  className="h-8 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 focus:ring-2 focus:ring-indigo-500 cursor-pointer min-w-[150px] pr-8"
+                >
+                  <option value="">-- בחר תצוגה שמורה --</option>
+                  {savedViews.map(view => (
+                    <option key={view.id} value={view.id}>{view.name}</option>
+                  ))}
+                </select>
+                
+                {activeViewId && (
+                  <button 
+                    onClick={(e) => handleDeleteView(activeViewId, e)}
+                    className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    title="מחק תצוגה זו"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+                
+                <Button 
+                  type="button"
+                  onClick={handleSaveViewClick}
+                  disabled={isSavingView}
+                  className="h-8 px-3 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  שמור תצוגה
+                </Button>
+              </div>
+            </div>
+          </div>
           
           <div className="flex items-center gap-4 flex-wrap print:hidden">
             <label className="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 px-3 h-10 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">
