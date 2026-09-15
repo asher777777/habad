@@ -4,6 +4,7 @@ import { adminDb } from "@/lib/firebase-admin";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { revalidatePath } from "next/cache";
 import { getAiSettings } from "@/features/ai/actions";
+import { safeJsonParse } from "@/lib/utils";
 
 export interface LivePost {
   id: string;
@@ -167,8 +168,10 @@ export async function generatePostWithAI(prompt: string, formConfig?: any) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Upgraded model to Gemini 3.1 Pro as used in service pages
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-3.1-pro-preview",
+      generationConfig: { responseMimeType: "application/json" }
+    });
 
     const systemPrompt = `You are a warm, welcoming Chabad Rabbi and community leader.
 Your task is to write an engaging, inspiring, and beautiful Hebrew community post or update based on the user's prompt.
@@ -187,9 +190,9 @@ The response MUST be a valid JSON object matching exactly this structure:
 Return ONLY the raw JSON. No markdown, no wrap in code blocks.`;
 
     const result = await model.generateContent([systemPrompt, prompt]);
-    const responseText = result.response.text().trim().replace(/^```json/, '').replace(/```$/, '').trim();
+    const responseText = result.response.text();
 
-    const postData = JSON.parse(responseText);
+    const postData = safeJsonParse(responseText);
     const id = "post_" + Date.now();
 
     // Default category fallback gradient

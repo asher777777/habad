@@ -3,6 +3,7 @@
 import { adminDb, adminStorage } from "@/lib/firebase-admin";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { addMediaToLibrary } from "@/features/media/actions";
+import { safeJsonParse } from "@/lib/utils";
 
 export async function getAiSettings() {
   try {
@@ -130,7 +131,10 @@ export async function generateSeoTagsWithAI(
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-3.1-pro-preview",
+      generationConfig: { responseMimeType: "application/json" }
+    });
 
     const prompt = `
 מטרה: ייצור תגיות SEO (כותרת, תיאור מטא ומילות מפתח) ממוקדות ואיכותיות לעמוד באתר של בית חב"ד, על בסיס התוכן הבא של העמוד.
@@ -152,17 +156,7 @@ export async function generateSeoTagsWithAI(
 `;
 
     const result = await model.generateContent(prompt);
-    let responseText = result.response.text().trim();
-    
-    // Remove markdown code blocks if any
-    if (responseText.startsWith("\`\`\`")) {
-      const lines = responseText.split("\\n");
-      if (lines.length > 2) {
-        responseText = lines.slice(1, -1).join("\\n");
-      }
-    }
-
-    const json = JSON.parse(responseText);
+    const json = safeJsonParse(result.response.text());
     
     return { 
       success: true, 

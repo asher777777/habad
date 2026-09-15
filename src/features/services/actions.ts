@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { getAiSettings } from "@/features/ai/actions";
 import { auth } from "@/lib/auth";
 import { addMediaToLibrary } from "@/features/media/actions";
+import { safeJsonParse } from "@/lib/utils";
 
 
 export async function getServicePage(slug: string) {
@@ -117,7 +118,10 @@ export async function generatePageWithAI(prompt: string, slug: string, type: 'se
     }
     
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-3.1-pro-preview",
+      generationConfig: { responseMimeType: "application/json" }
+    });
 
     const selectedSectionsList = selectedSections.join(", ");
 
@@ -162,9 +166,8 @@ JSON Structure Example:
 Return ONLY the JSON. No markdown, no comments.`;
 
     const result = await model.generateContent([systemPrompt, prompt]);
-    const responseText = result.response.text().trim().replace(/^```json/, '').replace(/```$/, '').trim();
-    
-    const generatedData = JSON.parse(responseText);
+    const responseText = result.response.text();
+    const generatedData = safeJsonParse(responseText);
     
     let imageUrl = "/placeholder.png";
     let imagePrompt = generatedData.imagePrompt || `Professional high quality warm photograph of ${generatedData.hero?.title || slug} for a Jewish Chabad house website, welcoming atmosphere, soft atmospheric lighting, photorealistic, 16:9 aspect ratio`;
